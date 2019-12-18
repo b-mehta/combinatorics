@@ -1,7 +1,6 @@
 import algebra.geom_sum
 import data.finset
 import data.fintype
-import data.list
 import tactic
 
 open fintype
