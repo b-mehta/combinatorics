@@ -1400,46 +1400,6 @@ section
 end
 end UV
 
-lemma killing {α : Type*} [decidable_eq α] (A : finset α) (i k : ℕ) (h₁ : card A = i + k) : ∃ (B : finset α), B ⊆ A ∧ card B = i :=
-begin
-  revert A, induction k with k ih,
-  simp, intros A hA, use A, exact ⟨subset.refl _, hA⟩,
-  intros A hA, have: ∃ i, i ∈ A, rw exists_mem_iff_ne_empty, rw ← ne, rw ← card_pos, rw hA, rw nat.add_succ, apply nat.succ_pos,
-  rcases this with ⟨a, ha⟩,
-  set A' := erase A a,
-  have z: card A' = i + k,
-    rw card_erase_of_mem ha, rw hA, rw nat.add_succ, rw nat.pred_succ, 
-  rcases ih A' z with ⟨B, hB, cardB⟩,
-  refine ⟨B, _, cardB⟩, apply trans hB _, apply erase_subset
-end
-
-lemma killing2 {α : Type*} [decidable_eq α] (A B : finset α) (i k : ℕ) (h₁ : card A = i + k + card B) (h₂ : B ⊆ A) : ∃ (C : finset α), B ⊆ C ∧ C ⊆ A ∧ card C = i + card B :=
-begin
-  revert A, induction k with k ih,
-  simp, intros A cards BsubA, refine ⟨A, BsubA, subset.refl _, cards⟩,
-  intros A cards BsubA, have: ∃ i, i ∈ A \ B, rw exists_mem_iff_ne_empty, rw [← ne, ← card_pos, card_sdiff BsubA, cards, nat.add_sub_cancel, nat.add_succ], apply nat.succ_pos,
-  rcases this with ⟨a, ha⟩,
-  set A' := erase A a,
-  have z: card A' = i + k + card B,
-    rw card_erase_of_mem, rw cards, rw nat.add_succ, rw nat.succ_add, rw nat.pred_succ, rw mem_sdiff at ha, exact ha.1,
-  rcases ih A' z _ with ⟨B', hB', B'subA', cards⟩,
-  refine ⟨B', hB', trans B'subA' (erase_subset _ _), cards⟩, 
-  intros t th, apply mem_erase_of_ne_of_mem, intro, rw mem_sdiff at ha, rw a_1 at th, exact ha.2 th, exact BsubA th,
-end
-
-lemma killing2_sets {α : Type*} [decidable_eq α] (A B : finset α) (i : ℕ) (h₁ : card A ≥ i + card B) (h₂ : B ⊆ A) : ∃ (C : finset α), B ⊆ C ∧ C ⊆ A ∧ card C = i + card B :=
-begin
-  rcases nat.le.dest h₁,
-  rw add_right_comm at h, 
-  apply killing2 A B i w h.symm h₂,
-end
-
-lemma kill_sets {α : Type*} [decidable_eq α] (A : finset α) (i : ℕ) (h₁ : card A ≥ i) : ∃ (B : finset α), B ⊆ A ∧ card B = i := 
-begin
-  rcases nat.le.dest h₁,
-  apply killing A i w h.symm, 
-end
-
 section KK
   theorem kruskal_katona (r : ℕ) (𝒜 𝒞 : finset (finset X)) : 
     is_layer 𝒜 r ∧ is_layer 𝒞 r ∧ 𝒜.card = 𝒞.card ∧ UV.is_init_seg_of_colex 𝒞 r 
@@ -1461,7 +1421,7 @@ section KK
   → (∂𝒞).card ≤ (∂𝒜).card :=
   begin
     rintros ⟨Ar, Cr, cards, colex⟩,
-    rcases kill_sets 𝒜 𝒞.card cards with ⟨𝒜', prop, size⟩,
+    rcases exists_smaller_set 𝒜 𝒞.card cards with ⟨𝒜', prop, size⟩,
     have := kruskal_katona r 𝒜' 𝒞 ⟨λ A hA, Ar _ (prop hA), Cr, size, colex⟩,
     transitivity, exact this, apply card_le_of_subset, rw [shadow, shadow], apply bind_sub_bind_of_sub_left prop
   end
@@ -1559,7 +1519,7 @@ section KK
       rw ← Ah.2, rw ← card_sdiff_i, rw ← card_disjoint_union, rw union_sdiff_of_subset BsubA,  apply disjoint_sdiff,
       apply hir,
     rintro ⟨_, _⟩,
-    rcases killing2_sets _ _ i _ a_left with ⟨C, BsubC, Csubrange, cards⟩, 
+    rcases exists_intermediate_set _ _ i _ a_left with ⟨C, BsubC, Csubrange, cards⟩, 
     rw [a_right, ← nat.add_sub_assoc hir, nat.add_sub_cancel_left] at cards, 
     refine ⟨C, _, BsubC, _⟩,
     rw mem_powerset_len, exact ⟨Csubrange, cards⟩, 
