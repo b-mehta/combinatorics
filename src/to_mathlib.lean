@@ -7,7 +7,8 @@ open finset
 lemma sdiff_union_inter {α : Type*} [decidable_eq α] (A B : finset α) : (A \ B) ∪ (A ∩ B) = A :=
 by simp only [ext, mem_union, mem_sdiff, mem_inter]; tauto
 
-lemma sdiff_inter_inter {α : Type*} [decidable_eq α] (A B : finset α) : disjoint (A \ B) (A ∩ B) := disjoint_of_subset_right (inter_subset_right _ _) sdiff_disjoint
+lemma sdiff_inter_inter {α : Type*} [decidable_eq α] (A B : finset α) : disjoint (A \ B) (A ∩ B) := 
+disjoint_of_subset_right (inter_subset_right _ _) sdiff_disjoint
 
 @[simp] lemma sdiff_empty {α : Type*} [decidable_eq α] (s : finset α) : s \ ∅ = s := empty_union s
 @[simp] lemma sdiff_idem {α : Type*} [decidable_eq α] (s t : finset α) : s \ t \ t = s \ t := by simp only [ext, mem_sdiff]; tauto
@@ -19,13 +20,20 @@ lemma sdiff_singleton_eq_erase {α : Type*} [decidable_eq α] (a : α) (s : fins
 lemma union_sdiff_distrib_right {α : Type*} [decidable_eq α] (s₁ s₂ t : finset α) : (s₁ ∪ s₂) \ t = s₁ \ t ∪ s₂ \ t := by simp only [ext, mem_sdiff, mem_union]; tauto
 lemma sdiff_union_distrib_left {α : Type*} [decidable_eq α] (s t₁ t₂ : finset α) : s \ (t₁ ∪ t₂) = (s \ t₁) ∩ (s \ t₂) := by simp only [ext, mem_union, mem_sdiff, mem_inter]; tauto
 lemma union_eq_left_of_subset {α : Type*} [decidable_eq α] {s t : finset α} (h : t ⊆ s) : s ∪ t = s := by simp only [ext, mem_union]; tauto
-lemma new_thing {α : Type*} [decidable_eq α] {s t : finset α} : disjoint s t ↔ s \ t = s := -- split
+
+lemma sdiff_eq_self_of_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : disjoint s t → s \ t = s :=
 begin
-  split; intro p,
-    rw disjoint_iff_inter_eq_empty at p,
-    exact union_empty (s \ t) ▸ (p ▸ sdiff_union_inter s t), 
-  rw ← p, apply sdiff_disjoint
+  intro p, rw disjoint_iff_inter_eq_empty at p,
+  exact union_empty (s \ t) ▸ (p ▸ sdiff_union_inter s t)
 end
+
+lemma sdiff_eq_self_iff_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : s \ t = s ↔ disjoint s t := 
+begin
+  split, intro p,
+    rw ← p, apply sdiff_disjoint,
+  exact sdiff_eq_self_of_disjoint
+end
+
 lemma disjoint_self_iff_empty {α : Type*} [decidable_eq α] (s : finset α) : disjoint s s ↔ s = ∅ :=
 disjoint_self
 
@@ -74,16 +82,19 @@ begin
   simp at x₂, exact ⟨B, x₁, x₂⟩, simpa,
 end
 
-
 lemma bind_sub_bind_of_sub_left {α β : Type*} [decidable_eq β] {s₁ s₂ : finset α} {t : α → finset β} (h : s₁ ⊆ s₂) : s₁.bind t ⊆ s₂.bind t :=
 by intro x; simp; intros y hy hty; refine ⟨y, h hy, hty⟩
 
-lemma sum_div {α β : Type*} [division_ring β] {s : finset α} {f : α → β} {b : β} : s.sum f / b = s.sum (λx, f x / b) :=
-calc s.sum f / b = s.sum (λ x, f x * (1 / b)) : by rw [div_eq_mul_one_div, sum_mul]
-     ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div (f x) b
+section big_operators
+  lemma sum_div {α β : Type*} [division_ring β] {s : finset α} {f : α → β} {b : β} : s.sum f / b = s.sum (λx, f x / b) :=
+  calc s.sum f / b = s.sum (λ x, f x * (1 / b)) : by rw [div_eq_mul_one_div, sum_mul]
+      ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div (f x) b
+end big_operators
 
-lemma choose_symm' {n a b : ℕ} (h : n = a + b) : nat.choose n a = nat.choose n b :=
-begin
-  have: a = n - b, rw h, rw nat.add_sub_cancel, 
-  rw [this, nat.choose_symm], apply nat.le.intro, symmetry, rwa add_comm
-end
+section nat
+  lemma choose_symm' {n a b : ℕ} (h : n = a + b) : nat.choose n a = nat.choose n b :=
+  begin
+    have: a = n - b, rw h, rw nat.add_sub_cancel, 
+    rw [this, nat.choose_symm], apply nat.le.intro, symmetry, rwa add_comm
+  end
+end nat
