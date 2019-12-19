@@ -967,12 +967,12 @@ section
     rw [bin_measure, sum_image], intros x _ y _, exact fin.eq_of_veq,
   end
 
-  lemma bin_lt_of_maxdiff (A B : finset X) : (∃ (k : X), k ∉ A ∧ k ∈ B ∧ (∀ (x : X), x > k → (x ∈ A ↔ x ∈ B))) → bin_measure A < bin_measure B :=
+  lemma bin_lt_of_maxdiff (A B : finset X) : (∃ (k : X), k ∉ A ∧ k ∈ B ∧ (∀ (x : X), k < x → (x ∈ A ↔ x ∈ B))) → bin_measure A < bin_measure B :=
   begin
     rintro ⟨k, notinA, inB, maxi⟩,
     have AeqB: A.filter (λ x, ¬(x ≤ k)) = B.filter (λ x, ¬(x ≤ k)),
     { ext t, rw [mem_filter, mem_filter], 
-      by_cases h: (t > k); simp [h], 
+      by_cases h: (k < t); simp [h], 
       apply maxi, exact h },
     { have Alt: (A.filter (λ x, x ≤ k)).sum (λ x, pow 2 x.val) < pow 2 k.1,
         rw ← bin_measure, apply binary_sum', intro t, rw mem_filter, intro b, 
@@ -987,7 +987,7 @@ section
       rw disjoint_iff_inter_eq_empty, apply filter_inter_filter_neg_eq }
   end
 
-  lemma bin_iff (A B : finset X) : bin_measure A < bin_measure B ↔ ∃ (k : X), k ∉ A ∧ k ∈ B ∧ (∀ (x : X), x > k → (x ∈ A ↔ x ∈ B)) := 
+  lemma bin_iff (A B : finset X) : bin_measure A < bin_measure B ↔ ∃ (k : X), k ∉ A ∧ k ∈ B ∧ (∀ (x : X), k < x → (x ∈ A ↔ x ∈ B)) := 
   begin
     split, 
       intro p,
@@ -997,7 +997,7 @@ section
         ext a, by_contra z, have: differ ≠ ∅ := ne_empty_of_mem (mem_filter.2 ⟨complete _, z⟩), 
         exact this q,
       set k := max' differ h, use k,
-      have z: ∀ (x : fin n), x > k → (x ∈ A ↔ x ∈ B),
+      have z: ∀ (x : fin n), k < x → (x ∈ A ↔ x ∈ B),
         intros t th, by_contra, apply not_le_of_gt th, apply le_max', simpa [complete], 
       rw ← and.rotate, refine ⟨z, _⟩,
       have el: (k ∈ A ∧ k ∉ B) ∨ (k ∉ A ∧ k ∈ B),
@@ -1282,7 +1282,7 @@ section
             apply mem_erase_of_ne_of_mem _ q,
             apply ne_of_gt, apply lt_of_le_of_lt _ h₁, 
             apply min'_le _ _ _ kin,
-          intros x hx, have z := trans hx h₁, have := h _ z, simp at this ⊢, 
+          intros x hx, have z := trans h₁ hx, have := h _ z, simp at this ⊢, 
           have a1: ¬x = min' A hA := ne_of_gt (lt_of_le_of_lt (min'_le _ hA _ q) hx), 
           have a2: ¬x = i := ne_of_gt hx, tauto, 
         cases lt_or_eq_of_le (min'_le _ hA _ kin),
@@ -1294,7 +1294,7 @@ section
         apply le_of_eq,
         congr, have: erase A (min' A hA) ⊆ B,
           intros t th, rw mem_erase at th, 
-          have: t > k := h_1 ▸ (lt_of_le_of_ne (min'_le _ _ _ th.2) th.1.symm),
+          have: k < t := h_1 ▸ (lt_of_le_of_ne (min'_le _ _ _ th.2) th.1.symm),
           apply mem_of_mem_insert_of_ne ((h t this).2 th.2) (ne_of_gt (trans this h₁)),
           symmetry,
           apply eq_of_subset_of_card_le this (le_of_eq cards.symm) },
@@ -1388,54 +1388,6 @@ section KK
     transitivity, exact this, apply card_le_of_subset, rw [shadow, shadow], apply bind_sub_bind_of_sub_left prop
   end
 
-  theorem lovasz_form {r k : ℕ} {𝒜 : finset (finset X)} (hr1 : r ≥ 1) (hkn : k ≤ n) (hrk : r ≤ k) (h₁ : is_layer 𝒜 r) (h₂ : 𝒜.card ≥ nat.choose k r) : 
-    (∂𝒜).card ≥ nat.choose k (r-1) :=
-  begin
-    set range'k : finset X := attach_fin (range k) (λ m, by rw mem_range; apply forall_lt_iff_le.2 hkn),
-    set 𝒞 : finset (finset X) := powerset_len r (range'k),
-    have Ccard: 𝒞.card = nat.choose k r,
-      rw [card_powerset_len, card_attach_fin, card_range], 
-    have: is_layer 𝒞 r, intros A HA, rw mem_powerset_len at HA, exact HA.2,
-    suffices this: (∂𝒞).card = nat.choose k (r-1),
-    { rw ← this, apply strengthened r _ _ ⟨h₁, ‹is_layer 𝒞 r›, _, _⟩, 
-      rwa Ccard, 
-      refine ⟨‹_›, _⟩, rintros A HA B ⟨HB₁, HB₂⟩, 
-      rw mem_powerset_len, refine ⟨_, ‹_›⟩, 
-      intros t th, rw mem_attach_fin, rw mem_range, 
-      by_contra, simp at a, 
-      rw [UV.binary, inv_image] at HB₁,
-      apply not_le_of_gt HB₁, 
-      transitivity 2^k,
-        apply le_of_lt, 
-        apply UV.binary_sum',
-        intros x hx, rw mem_powerset_len at HA, exact mem_range.1 ((mem_attach_fin _).1 (HA.1 hx)), 
-      have: (λ (x : X), 2^x.val) t ≤ _ := single_le_sum _ th, 
-        transitivity, apply nat.pow_le_pow_of_le_right zero_lt_two a, rwa UV.bin_measure,
-      intros _ _, apply zero_le },
-    suffices: ∂𝒞 = powerset_len (r-1) (range'k),
-      rw [this, card_powerset_len, card_attach_fin, card_range], 
-    ext A, rw mem_powerset_len, split,
-      rw mem_shadow, rintro ⟨B, Bh, i, ih, BA⟩,
-      refine ⟨_, _⟩; rw ← BA; rw mem_powerset_len at Bh,
-        intro j, rw mem_erase, intro a,
-        exact Bh.1 a.2, 
-      rw [card_erase_of_mem ih, Bh.2], refl,
-    rintro ⟨_, _⟩,
-    rw mem_shadow', 
-    suffices: ∃ j, j ∈ range'k \ A,
-      rcases this with ⟨j,jp⟩, rw mem_sdiff at jp,
-      use j, use jp.2, rw mem_powerset_len, split, 
-        intros t th, rw mem_insert at th, cases th, 
-          rw th, exact jp.1,
-        exact a_left th,
-      rw [card_insert_of_not_mem jp.2, a_right, nat.sub_add_cancel hr1],
-    apply exists_mem_of_ne_empty,
-    rw ← card_pos,
-    rw card_sdiff a_left, rw card_attach_fin, apply nat.lt_sub_left_of_add_lt, 
-    rw [card_range, a_right, add_zero], rw nat.sub_lt_right_iff_lt_add hr1, 
-    apply nat.lt_succ_of_le hrk, 
-  end
-
   theorem iterated (r k : ℕ) (𝒜 𝒞 : finset (finset X)) : 
     is_layer 𝒜 r ∧ is_layer 𝒞 r ∧ 𝒞.card ≤ 𝒜.card ∧ UV.is_init_seg_of_colex 𝒞 r 
   → (nat.iterate shadow k 𝒞).card ≤ (nat.iterate shadow k 𝒜).card :=
@@ -1447,8 +1399,8 @@ section KK
     apply UV.shadow_of_IS _ z₄
   end
 
-  theorem lovasz_form_iterate {r k i : ℕ} {𝒜 : finset (finset X)} (hir : i ≤ r) (hkn : k ≤ n) (hrk : r ≤ k) (h₁ : is_layer 𝒜 r) (h₂ : 𝒜.card ≥ nat.choose k r) : 
-    (nat.iterate shadow i 𝒜).card ≥ nat.choose k (r-i) :=
+  theorem lovasz_form {r k i : ℕ} {𝒜 : finset (finset X)} (hir : i ≤ r) (hrk : r ≤ k) (hkn : k ≤ n) (h₁ : is_layer 𝒜 r) (h₂ : nat.choose k r ≤ 𝒜.card) : 
+    nat.choose k (r-i) ≤ (nat.iterate shadow i 𝒜).card :=
   begin
     set range'k : finset X := attach_fin (range k) (λ m, by rw mem_range; apply forall_lt_iff_le.2 hkn),
     set 𝒞 : finset (finset X) := powerset_len r (range'k),
@@ -1520,7 +1472,7 @@ begin
   rw nat.pow_add at q, simp at q, assumption,
 end
 
-def extremal_intersecting (hn : n ≥ 1) : finset (finset X) :=
+def extremal_intersecting (hn : 1 ≤ n) : finset (finset X) :=
 (powerset univ).filter (λ A, (⟨0, hn⟩: X) ∈ A)
 
 theorem EKR {r : ℕ} (h₁ : intersecting 𝒜) (h₂ : is_layer 𝒜 r) (h₃ : r < n/2) : 𝒜.card ≤ nat.choose (n-1) (r-1) :=
@@ -1546,7 +1498,7 @@ begin
   have: is_layer 𝒜bar (n - r),
     intro A, rw mem_image, rintro ⟨B, Bz, rfl⟩, rw card_univ_diff, rw card_fin, rw h₂ _ Bz, 
   have: n - 2 * r ≤ n - r, rw nat.sub_le_sub_left_iff, apply nat.le_mul_of_pos_left zero_lt_two, assumption,
-  have kk := lovasz_form_iterate ‹n - 2 * r ≤ n - r› (nat.sub_le_self _ _) (show n-r ≤ n-1, begin rw nat.sub_le_sub_left_iff, exact h1r, exact trans h1r ‹r ≤ n› end) ‹is_layer 𝒜bar (n - r)› (le_of_lt z), 
+  have kk := lovasz_form ‹n - 2 * r ≤ n - r› (by rwa nat.sub_le_sub_left_iff (trans h1r ‹r ≤ n›)) (nat.sub_le_self _ _) ‹is_layer 𝒜bar (n - r)› (le_of_lt z), 
   have q: n - r - (n - 2 * r) = r, rw nat.sub.right_comm, rw nat.sub_sub_self, rw two_mul, apply nat.add_sub_cancel,
   rw [mul_comm, ← nat.le_div_iff_mul_le' zero_lt_two], apply le_of_lt ‹_›, 
   rw q at kk, 
