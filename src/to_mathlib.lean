@@ -2,7 +2,7 @@ import data.finset
 import algebra.big_operators
 import tactic
 
-namespace finset
+open finset
 
 lemma sdiff_union_inter {α : Type*} [decidable_eq α] (A B : finset α) : (A \ B) ∪ (A ∩ B) = A :=
 by simp only [ext, mem_union, mem_sdiff, mem_inter]; tauto
@@ -14,7 +14,7 @@ lemma sdiff_inter_inter {α : Type*} [decidable_eq α] (A B : finset α) : disjo
 @[simp] lemma sdiff_self {α : Type*} [decidable_eq α] (s : finset α) : s \ s = ∅ := by simp only [ext, not_mem_empty, iff_self, mem_sdiff, and_not_self, forall_true_iff]
 lemma inter_union_self {α : Type*} [decidable_eq α] (s t : finset α) : s ∩ (t ∪ s) = s := by simp only [ext, mem_inter, mem_union]; tauto
 lemma union_sdiff_self {α : Type*} [decidable_eq α] (s t : finset α) : (s ∪ t) \ t = s \ t := by simp only [ext, mem_union, mem_sdiff]; tauto
-lemma union_singleton_eq_insert {α : Type*} [decidable_eq α] (a : α) (s : finset α) : finset.singleton a ∪ s = insert a s := begin ext, rw [mem_insert, mem_union, mem_singleton] end
+lemma union_singleton_eq_insert {α : Type*} [decidable_eq α] (a : α) (s : finset α) : finset.singleton a ∪ s = insert a s := rfl
 lemma sdiff_singleton_eq_erase {α : Type*} [decidable_eq α] (a : α) (s : finset α) : s \ finset.singleton a = erase s a := begin ext, rw [mem_erase, mem_sdiff, mem_singleton], tauto end
 lemma union_sdiff_distrib_right {α : Type*} [decidable_eq α] (s₁ s₂ t : finset α) : (s₁ ∪ s₂) \ t = s₁ \ t ∪ s₂ \ t := by simp only [ext, mem_sdiff, mem_union]; tauto
 lemma sdiff_union_distrib_left {α : Type*} [decidable_eq α] (s t₁ t₂ : finset α) : s \ (t₁ ∪ t₂) = (s \ t₁) ∩ (s \ t₂) := by simp only [ext, mem_union, mem_sdiff, mem_inter]; tauto
@@ -30,6 +30,10 @@ lemma disjoint_self_iff_empty {α : Type*} [decidable_eq α] (s : finset α) : d
 disjoint_self
 
 lemma sdiff_subset_left {α : Type*} [decidable_eq α] (s t : finset α) : s \ t ⊆ s := by have := sdiff_subset_sdiff (le_refl s) (empty_subset t); rwa sdiff_empty at this
+lemma sdiff_partially_injective {α : Type*} [decidable_eq α] {s t₁ t₂ : finset α} : s \ t₁ = s \ t₂ → s ∩ t₁ = s ∩ t₂ :=
+begin
+  simp [ext], intros b c, replace b := b c, split; tauto 
+end
 
 instance decidable_disjoint {α : Type*} [decidable_eq α] (U V : finset α) : decidable (disjoint U V) := 
 decidable_of_decidable_of_iff (by apply_instance) disjoint_iff_inter_eq_empty.symm
@@ -70,4 +74,16 @@ begin
   simp at x₂, exact ⟨B, x₁, x₂⟩, simpa,
 end
 
-end finset
+
+lemma bind_sub_bind_of_sub_left {α β : Type*} [decidable_eq β] {s₁ s₂ : finset α} {t : α → finset β} (h : s₁ ⊆ s₂) : s₁.bind t ⊆ s₂.bind t :=
+by intro x; simp; intros y hy hty; refine ⟨y, h hy, hty⟩
+
+lemma sum_div {α β : Type*} [division_ring β] {s : finset α} {f : α → β} {b : β} : s.sum f / b = s.sum (λx, f x / b) :=
+calc s.sum f / b = s.sum (λ x, f x * (1 / b)) : by rw [div_eq_mul_one_div, sum_mul]
+     ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div (f x) b
+
+lemma choose_symm' {n a b : ℕ} (h : n = a + b) : nat.choose n a = nat.choose n b :=
+begin
+  have: a = n - b, rw h, rw nat.add_sub_cancel, 
+  rw [this, nat.choose_symm], apply nat.le.intro, symmetry, rwa add_comm
+end

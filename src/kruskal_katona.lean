@@ -2,7 +2,6 @@ import algebra.geom_sum
 import data.finset
 import data.fintype
 import tactic
-
 import to_mathlib
 
 open fintype
@@ -50,9 +49,6 @@ section layers
     rwa [univ, ← powerset_len_iff_is_layer]
   end
 end layers
-
-lemma bind_sub_bind_of_sub_left {α β : Type*} [decidable_eq β] {s₁ s₂ : finset α} {t : α → finset β} (h : s₁ ⊆ s₂) : s₁.bind t ⊆ s₂.bind t :=
-by intro x; simp; intros y hy hty; refine ⟨y, h hy, hty⟩
 
 section shadow
   def all_removals (A : finset X) : finset (finset X) := A.image (erase A)
@@ -395,10 +391,6 @@ begin
   apply zero_le
 end
 
-lemma sum_div {α : Type*} {s : finset α} {f : α → ℚ} {b : ℚ} : s.sum f / b = s.sum (λx, f x / b) :=
-calc s.sum f / b = s.sum (λ x, f x * (1 / b)) : by rw [div_eq_mul_one_div, sum_mul]
-     ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div
-
 lemma sperner (H : antichain 𝒜) : 𝒜.card ≤ nat.choose n (n / 2) := 
 begin
   have q1 := lubell_yamamoto_meshalkin H,
@@ -689,7 +681,7 @@ section
         have: U \ V = U := new_thing.1 (disjoint_of_subset_right h.2 h.1),
         rw ← disjoint_self_iff_empty,
         apply disjoint_of_subset_right (subset_union_right (A\V) _),
-        rw [union_sdiff, ‹U \ V = U›] at h_1,
+        rw [union_sdiff_distrib_right, ‹U \ V = U›] at h_1,
         tauto,
       refl,
     refl,
@@ -825,7 +817,7 @@ section
         rw ← HB at *,
         refine ⟨_, disjoint_sdiff, _⟩,
           have: disjoint U V := disjoint_of_subset_right h.2 h.1,
-          rw union_sdiff, rw new_thing.1 this, apply subset_union_right _ _,
+          rw union_sdiff_distrib_right, rw new_thing.1 this, apply subset_union_right _ _,
         rwa [sdiff_union_of_subset, union_sdiff_self, new_thing.1 h.1.symm],
         apply trans h.2 (subset_union_left _ _)},
       { rw HB at *, tauto } },
@@ -843,7 +835,7 @@ section
           rw ← disjoint_self_iff_empty,
           suffices: disjoint U (U \ V), rw ‹U \ V = U› at this, assumption,
           apply disjoint_of_subset_right (subset_union_right (A\V) _),
-          rwa [← union_sdiff, a],
+          rwa [← union_sdiff_distrib_right, a],
         have: V = ∅,
           rw ← disjoint_self_iff_empty, apply disjoint_of_subset_right h₂,
           rw ← a, apply disjoint_sdiff,
@@ -886,23 +878,21 @@ section
         have: (insert x B ∪ V) \ U ∈ compress_family (erase U x) (erase V y) 𝒜, rw xy_comp, exact q.2.2,
         have: ((insert x B ∪ V) \ U ∪ erase U x) \ erase V y ∈ 𝒜,
           apply uncompressed_was_already_there this _ (disjoint_of_subset_left (erase_subset _ _) disjoint_sdiff),
-            rw [union_sdiff, ‹V \ U = V›],
+            rw [union_sdiff_distrib_right, ‹V \ U = V›],
             apply subset.trans (erase_subset _ _) (subset_union_right _ _), 
         suffices: ((insert x B ∪ V) \ U ∪ erase U x) \ erase V y = insert y B,
           rwa ← this,
+        have: x ∉ B ∪ V := λ z, disjoint_left.1 ‹disjoint V U› (or.resolve_left (mem_union.1 z) ‹x ∉ B›) ‹x ∈ U›,
+        have: erase U x ⊆ insert x B ∪ V := (trans (erase_subset x _) (trans q.1 (subset_union_left _ V))),
         by calc (((insert x B ∪ V) \ U) ∪ erase U x) \ erase V y 
             = (((insert x B ∪ V) \ finset.singleton x ∪ erase U x) ∩ ((insert x B ∪ V) \ erase U x ∪ erase U x)) \ erase V y : 
-                                  by rw [← union_distrib_right, ← sdiff_union, union_singleton_eq_insert, insert_erase a]
-        ... = (erase (insert x (B ∪ V)) x ∪ erase U x) ∩ (insert x B ∪ V) \ erase V y : 
-                                  by rw sdiff_union_of_subset (trans (erase_subset _ _) (trans q.1 (subset_union_left _ _))); rw insert_union; rw sdiff_singleton_eq_erase 
-        ... = (B ∪ erase U x ∪ V) ∩ (insert x B ∪ V) \ erase V y : 
-                                  begin rw erase_insert, rw union_right_comm, rw mem_union, exact (λ a_1, disjoint_left.1 ‹disjoint V U› (or.resolve_left a_1 ‹x ∉ B›) ‹x ∈ U›) end
+                                  by rw [← union_distrib_right, ← sdiff_union_distrib_left, union_singleton_eq_insert, insert_erase a]
         ... = (B ∪ V) \ erase V y : 
-                                  by rw ← union_distrib_right; congr; rw [union_eq_left_of_subset (subset_insert_iff.1 q.1), inter_insert_of_not_mem ‹x ∉ B›, inter_self]
+                                  by rw [sdiff_union_of_subset ‹erase U x ⊆ _›, sdiff_singleton_eq_erase, insert_union, erase_insert ‹x ∉ B ∪ V›, ← union_singleton_eq_insert, union_comm, ← union_distrib_right, inter_singleton_of_not_mem (not_mem_erase _ _), empty_union]
         ... = (insert y B ∪ erase V y) \ erase V y :  
                                   by rw [← union_singleton_eq_insert, union_comm _ B, union_assoc, union_singleton_eq_insert, insert_erase ‹y ∈ V›]
         ... = insert y B : 
-                                  begin rw [union_sdiff_self, ← new_thing, disjoint_insert_left], refine ⟨not_mem_erase _ _, disjoint_of_subset_right (erase_subset _ _) ‹disjoint V B›.symm⟩ end,
+                                  begin rw [union_sdiff_self, ← new_thing, disjoint_insert_left], refine ⟨not_mem_erase _ _, disjoint_of_subset_right (erase_subset _ _) ‹disjoint V B›.symm⟩ end,                 
       have: U ⊆ B, rw [← erase_eq_of_not_mem ‹x ∉ U›, ← subset_insert_iff], exact q.1,
       refine ⟨‹_›, ‹_›, _⟩,
       rw mem_sdiff,
@@ -911,15 +901,8 @@ section
         rw mem_shadow',
         refine ⟨x, _, _⟩,
         { simp [mem_sdiff, mem_union], safe },
-        have: insert x ((B ∪ V) \ U) = (insert x B ∪ V) \ U,
-          simp [ext, mem_sdiff, mem_union, mem_insert], 
-          intro a,
-          split; intro p,
-            cases p,
-              rw p at *, tauto,
-            tauto,
-          tauto,
-        rw this, tauto,
+        convert q.2.2,
+        rw [← union_singleton_eq_insert, ← union_singleton_eq_insert, union_assoc, union_sdiff_distrib_right _ (B ∪ V), new_thing.1 (singleton_disjoint.2 ‹x ∉ U›)], 
       rw mem_shadow',
       rintro ⟨w, _, _⟩,
       by_cases (w ∈ U),
@@ -928,15 +911,14 @@ section
         have: insert w ((B ∪ V) \ U) ∈ 𝒜, {
           apply compress_held a_h_h _ h₂, 
           apply subset.trans _ (subset_insert _ _),
-          rw union_sdiff, rw ‹V \ U = V›, apply subset_union_right
-        },
+          rw union_sdiff_distrib_right, rw ‹V \ U = V›, apply subset_union_right },
         have: (insert w ((B ∪ V) \ U) ∪ erase U w) \ erase V z ∈ 𝒜,
           refine uncompressed_was_already_there _ _ _, 
               rw is_compressed at xy_comp,
               rwa xy_comp,
             apply subset.trans (erase_subset _ _),
             apply subset.trans _ (subset_insert _ _),
-            rw union_sdiff,
+            rw union_sdiff_distrib_right,
             rw ‹V \ U = V›,
             apply subset_union_right,
           rw disjoint_insert_right,
@@ -944,46 +926,34 @@ section
           apply disjoint_of_subset_left (erase_subset _ _),
           apply disjoint_sdiff,
         have: (insert w ((B ∪ V) \ U) ∪ erase U w) \ erase V z = insert z B,
-        by calc (insert w ((B ∪ V) \ U) ∪ erase U w) \ erase V z = (finset.singleton w ∪ ((B ∪ V) \ U) ∪ erase U w) \ erase V z : begin congr, end
-        ... = (((B ∪ V) \ U) ∪ (finset.singleton w ∪ erase U w)) \ erase V z : begin rw [union_left_comm, union_assoc] end
+        by calc (insert w ((B ∪ V) \ U) ∪ erase U w) \ erase V z = (((B ∪ V) \ U) ∪ (finset.singleton w ∪ erase U w)) \ erase V z : begin rw [← union_singleton_eq_insert, union_left_comm, union_assoc] end
         ... = (((B ∪ V) \ U) ∪ U) \ erase V z : begin congr, rw union_singleton_eq_insert, rw insert_erase h end
         ... = (B ∪ V) \ erase V z : begin rw sdiff_union_of_subset, apply subset.trans ‹U ⊆ B› (subset_union_left _ _) end
-        ... = B \ erase V z ∪ V \ erase V z : begin rw union_sdiff end
+        ... = B \ erase V z ∪ V \ erase V z : begin rw union_sdiff_distrib_right end
         ... = B ∪ V \ erase V z : begin congr, rw ← new_thing, apply disjoint_of_subset_right (erase_subset _ _) ‹disjoint V B›.symm end
         ... = B ∪ finset.singleton z : begin congr, ext, simp, split, intro p, by_contra, exact p.2 ‹_› p.1, intro p, rw p, tauto end
         ... = insert z B : begin rw [union_comm, union_singleton_eq_insert] end,
         rwa ← this,
-      have: w ∉ V,
-        intro, have: w ∈ B ∪ V := mem_union_right _ ‹_›,
-        exact a_h_w (mem_sdiff.2 ⟨‹_›, ‹_›⟩),
-      have: w ∉ B,
-        intro, have: w ∈ B ∪ V := mem_union_left _ ‹_›,
-        exact a_h_w (mem_sdiff.2 ⟨‹_›, ‹_›⟩),
+      rw [mem_sdiff, ← not_imp, not_not] at a_h_w,
+      have: w ∉ V := h ∘ a_h_w ∘ mem_union_right _,
+      have: w ∉ B := h ∘ a_h_w ∘ mem_union_left _,
       apply m w this,
       
       have: (insert w ((B ∪ V) \ U) ∪ U) \ V ∈ 𝒜, 
-      refine uncompressed_was_already_there ‹insert w ((B ∪ V) \ U) ∈ 𝒜'› (trans _ (subset_insert _ _)) _,
-          rw union_sdiff,
-           rw ‹V \ U = V›,
-          apply subset_union_right,
-        rw disjoint_insert_right,
-        exact ⟨‹_›, disjoint_sdiff⟩,
-      suffices: insert w B = (insert w ((B ∪ V) \ U) ∪ U) \ V,
-        rwa this,
+        refine uncompressed_was_already_there ‹insert w ((B ∪ V) \ U) ∈ 𝒜'› (trans _ (subset_insert _ _)) _,
+          rw [union_sdiff_distrib_right, ‹V \ U = V›], apply subset_union_right,
+          rw disjoint_insert_right,
+          exact ⟨‹_›, disjoint_sdiff⟩,
+      convert this,
       rw insert_union,
       rw sdiff_union_of_subset (trans ‹U ⊆ B› (subset_union_left _ _)),
       rw ← insert_union,
-      rw union_sdiff_self, 
-      conv {to_lhs, rw ← sdiff_union_inter (insert w B) V},
-      suffices: insert w B ∩ V = ∅,
-        rw this, rw union_empty, 
-      rw ← disjoint_iff_inter_eq_empty,
+      rw union_sdiff_self, symmetry,
+      rw ← new_thing,
       rw disjoint_insert_left,
-      split,
-        assumption,
+      split, assumption,
       rwa disjoint.comm,
-    set f := (λ B, (B ∪ V) \ U),
-    apply card_le_card_of_inj_on f (λ B HB, (q₁ B HB).2.2),
+    apply card_le_card_of_inj_on (λ B, (B ∪ V) \ U) (λ B HB, (q₁ B HB).2.2),
     intros B₁ HB₁ B₂ HB₂ k,
     exact inj_ish B₁ B₂ ⟨(q₁ B₁ HB₁).2.1, (q₁ B₁ HB₁).1⟩ ⟨(q₁ B₂ HB₂).2.1, (q₁ B₂ HB₂).1⟩ k
   end
@@ -1224,11 +1194,11 @@ section
     have: disjoint U B ∧ V ⊆ B := ⟨sdiff_disjoint, sdiff_subset_left _ _⟩,
     have: disjoint V A ∧ U ⊆ A := ⟨sdiff_disjoint, sdiff_subset_left _ _⟩,
     have cB_eq_A: compress U V B = A,
-    { rw compress, split_ifs, rw [union_sdiff_self_eq_union, union_sdiff, new_thing.1 disjoint_sdiff, union_comm], 
+    { rw compress, split_ifs, rw [union_sdiff_self_eq_union, union_sdiff_distrib_right, new_thing.1 disjoint_sdiff, union_comm], 
       apply union_eq_left_of_subset,
       intro t, simp only [and_imp, not_and, mem_sdiff, not_not], exact (λ x y, y x) },
     have cA_eq_B: compress V U A = B,
-    { rw compress, split_ifs, rw [union_sdiff_self_eq_union, union_sdiff, new_thing.1 disjoint_sdiff, union_comm], 
+    { rw compress, split_ifs, rw [union_sdiff_self_eq_union, union_sdiff_distrib_right, new_thing.1 disjoint_sdiff, union_comm], 
       apply union_eq_left_of_subset,
       intro t, simp only [and_imp, not_and, mem_sdiff, not_not], exact (λ x y, y x) },
     have: card A = card B := trans sizeA (h₁ B Bh).symm,
@@ -1526,21 +1496,17 @@ section KK
     rw card_sdiff BsubC, rw cards, rw a_right, rw nat.sub_sub_self hir, 
     rw a_right, rw card_attach_fin, rw card_range, rw ← nat.add_sub_assoc hir, rwa nat.add_sub_cancel_left, 
   end
-
 end KK
 
 def intersecting (𝒜 : finset (finset X)) : Prop := ∀ A ∈ 𝒜, ∀ B ∈ 𝒜, ¬ disjoint A B
 
 theorem intersecting_all (h : intersecting 𝒜) : 𝒜.card ≤ 2^(n-1) :=
 begin
-  cases lt_or_le n 1 with b hn,
-    have: n = 0, apply nat.eq_zero_of_le_zero (nat.pred_le_pred b),
-    suffices: finset.card 𝒜 = 0,
-      rw this, apply nat.zero_le,
+  cases nat.eq_zero_or_pos n with b hn,
+    convert nat.zero_le _,
     rw [card_eq_zero, eq_empty_iff_forall_not_mem],
     intros A HA, apply h A HA A HA, rw disjoint_self_iff_empty, 
-    apply eq_empty_of_forall_not_mem, 
-    intro x, rw this at x, exact (fin.elim0 ‹_›),
+    rw eq_empty_iff_forall_not_mem, intro x, rw b at x, exact (fin.elim0 ‹_›),
   set f : finset X → finset (finset X) := λ A, insert (univ \ A) (finset.singleton A),
   have disjs: ∀ x ∈ 𝒜, ∀ y ∈ 𝒜, x ≠ y → disjoint (f x) (f y),
     intros A hA B hB k,
@@ -1564,3 +1530,42 @@ end
 
 def extremal_intersecting (hn : n ≥ 1) : finset (finset X) :=
 (powerset univ).filter (λ A, (⟨0, hn⟩: X) ∈ A)
+
+theorem EKR {r : ℕ} (h₁ : intersecting 𝒜) (h₂ : is_layer 𝒜 r) (h₃ : r < n/2) : 𝒜.card ≤ nat.choose (n-1) (r-1) :=
+begin
+  cases nat.eq_zero_or_pos r with b h1r,
+    convert nat.zero_le _,
+    rw [card_eq_zero, eq_empty_iff_forall_not_mem],
+    intros A HA, apply h₁ A HA A HA, rw disjoint_self_iff_empty, 
+    rw ← card_eq_zero, rw ← b, apply h₂ _ HA,
+  by_contra size, replace size := lt_of_not_ge size,
+  set 𝒜bar := 𝒜.image (λ A, univ \ A),
+  have: disjoint 𝒜 (nat.iterate shadow (n-2*r) 𝒜bar),
+    rw disjoint_right, intros A hAbar hA, 
+    simp [sub_iff_shadow_iter, mem_image] at hAbar,
+    rcases hAbar with ⟨_, ⟨C, hC, rfl⟩, AsubnotC, _⟩, 
+    apply h₁ A hA C hC (disjoint_of_subset_left AsubnotC sdiff_disjoint),
+  have: r ≤ n := trans (le_of_lt h₃) (nat.div_le_self n 2), 
+  have: 1 ≤ n := trans ‹1 ≤ r› ‹r ≤ n›,
+  have z: 𝒜bar.card > nat.choose (n-1) (n-r),
+    convert size using 1, rw card_image_of_inj_on, intros A _ B _ k, replace k := sdiff_partially_injective k,
+      simp [ext] at k, rwa ext,
+    apply choose_symm', rw [← nat.add_sub_assoc ‹r ≥ 1›, nat.sub_add_cancel ‹r ≤ n›],
+  have: is_layer 𝒜bar (n - r),
+    intro A, rw mem_image, rintro ⟨B, Bz, rfl⟩, rw card_univ_diff, rw card_fin, rw h₂ _ Bz, 
+  have: n - 2 * r ≤ n - r, rw nat.sub_le_sub_left_iff, apply nat.le_mul_of_pos_left zero_lt_two, assumption,
+  have kk := lovasz_form_iterate ‹n - 2 * r ≤ n - r› (nat.sub_le_self _ _) (show n-r ≤ n-1, begin rw nat.sub_le_sub_left_iff, exact h1r, exact trans h1r ‹r ≤ n› end) ‹is_layer 𝒜bar (n - r)› (le_of_lt z), 
+  have q: n - r - (n - 2 * r) = r, rw nat.sub.right_comm, rw nat.sub_sub_self, rw two_mul, apply nat.add_sub_cancel,
+  rw [mul_comm, ← nat.le_div_iff_mul_le' zero_lt_two], apply le_of_lt ‹_›, 
+  rw q at kk, 
+  have: nat.choose n r < card (𝒜 ∪ nat.iterate shadow (n - 2 * r) 𝒜bar),
+    rw card_disjoint_union ‹_›, 
+    convert lt_of_le_of_lt (nat.add_le_add_left kk _) (nat.add_lt_add_right size _),
+    convert nat.choose_succ_succ _ _, any_goals {rwa [nat.sub_one, nat.succ_pred_eq_of_pos]}, 
+  apply not_le_of_lt this,
+  convert size_in_layer _, rw card_fin,
+  rw ← union_layer, refine ⟨‹_›, _⟩,
+  intros B hB, rw sub_iff_shadow_iter at hB, 
+  rcases hB with ⟨A, hA, _, cards⟩, rw [card_sdiff ‹B ⊆ A›, ‹is_layer 𝒜bar (n - r)› _ ‹A ∈ _›] at cards, 
+  rw ← q, rw ← cards, rw nat.sub_sub_self, rw ← ‹is_layer 𝒜bar (n - r)› _ ‹A ∈ _›, apply card_le_of_subset ‹B ⊆ A›
+end
