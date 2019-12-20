@@ -58,6 +58,15 @@ begin
   exact (le_of_lt $ ih h $ λ t, assump t ∘ mem_insert_of_mem),
 end
 
+lemma sum_flip {α : Type*} [add_comm_monoid α] {n : ℕ} (f : ℕ → α) : sum (range (n+1)) (λ r, f (n - r)) = sum (range (n+1)) (λ r, f r) :=
+begin
+  induction n with n ih,
+    rw [sum_range_one, sum_range_one],
+  rw sum_range_succ',
+  rw sum_range_succ _ (nat.succ n),
+  simp [ih],
+end
+
 lemma exists_intermediate_set {α : Type*} [decidable_eq α] (A B : finset α) (i : ℕ) (h₁ : card A ≥ i + card B) (h₂ : B ⊆ A) : 
   ∃ (C : finset α), B ⊆ C ∧ C ⊆ A ∧ card C = i + card B :=
 begin

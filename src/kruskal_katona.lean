@@ -6,6 +6,7 @@ import to_mathlib
 
 open fintype
 open finset
+open nat
 
 variable {α : Type*}
 variables [decidable_eq α] -- [decidable_linear_order α]
@@ -330,15 +331,6 @@ section lym
     transitivity,
       exact ih (le_of_lt hk),
     apply local_lym (nat.le_sub_left_of_add_le hk) (nat.sub_le _ _) (decompose'_layer _ _)
-  end
-
-  lemma sum_flip {α : Type*} [add_comm_monoid α] {n : ℕ} (f : ℕ → α) : sum (range (n+1)) (λ r, f (n - r)) = sum (range (n+1)) (λ r, f r) :=
-  begin
-    induction n with n ih,
-      rw [sum_range_one, sum_range_one],
-    rw sum_range_succ',
-    rw sum_range_succ _ (nat.succ n),
-    simp [ih],
   end
 
   lemma card_decompose_other {𝒜 : finset (finset X)} (H : antichain 𝒜) : 
