@@ -153,6 +153,7 @@ section shadow
   end
 end shadow
 
+#eval example1
 #eval shadow example1
 
 section local_lym
@@ -355,42 +356,6 @@ section lym
   end
 end lym
 
-lemma dominate_choose_lt {r n : ℕ} (h : r < n/2) : nat.choose n r ≤ nat.choose n (r+1) :=
-begin
-  refine le_of_mul_le_mul_right _ (nat.lt_sub_left_of_add_lt (lt_of_lt_of_le h (nat.div_le_self n 2))),
-  rw ← nat.choose_succ_right_eq,
-  apply nat.mul_le_mul_left,
-  rw ← nat.lt_iff_add_one_le,
-  apply nat.lt_sub_left_of_add_lt,
-  rw ← mul_two,
-  exact lt_of_lt_of_le (mul_lt_mul_of_pos_right h zero_lt_two) (nat.div_mul_le_self n 2),
-end
-
-lemma dominate_choose_lt' {n r : ℕ} (hr : r ≤ n/2) : nat.choose n r ≤ nat.choose n (n/2) :=
-begin
-  refine (@nat.decreasing_induction (λ k, k ≤ n/2 → nat.choose n k ≤ nat.choose n (n/2)) _ r (n/2) hr (λ _, by refl)) hr,
-  intros m k a,
-  cases lt_or_eq_of_le a,
-    transitivity nat.choose n (m + 1),
-      exact dominate_choose_lt h,
-    exact k h,
-  rw h,
-end 
-
-lemma dominate_choose {r n : ℕ} : nat.choose n r ≤ nat.choose n (n/2) :=
-begin
-  cases le_or_gt r n with b b,
-    cases le_or_gt r (n/2) with a,
-      apply dominate_choose_lt' a,
-    rw ← nat.choose_symm b,
-    apply dominate_choose_lt',
-    rw [gt_iff_lt, nat.div_lt_iff_lt_mul _ _ zero_lt_two] at h,
-    rw [nat.le_div_iff_mul_le _ _ zero_lt_two, nat.mul_sub_right_distrib, nat.sub_le_iff, mul_two, nat.add_sub_cancel],
-    exact le_of_lt h,
-  rw nat.choose_eq_zero_of_lt b,
-  apply zero_le
-end
-
 lemma sperner (H : antichain 𝒜) : 𝒜.card ≤ nat.choose n (n / 2) := 
 begin
   have q1 := lubell_yamamoto_meshalkin H,
@@ -461,38 +426,38 @@ section
     refl
   end
 
-  @[reducible] def compress_motion (𝒜 : finset (finset X)) : finset (finset X) := 𝒜.filter (λ A, C A ∈ 𝒜)
-  @[reducible] def compress_remains (𝒜 : finset (finset X)) : finset (finset X) := (𝒜.filter (λ A, C A ∉ 𝒜)).image (λ A, C A)
+  @[reducible] def compress_remains (𝒜 : finset (finset X)) : finset (finset X) := 𝒜.filter (λ A, C A ∈ 𝒜)
+  @[reducible] def compress_motion (𝒜 : finset (finset X)) : finset (finset X) := (𝒜.filter (λ A, C A ∉ 𝒜)).image (λ A, C A)
 
   def compress_family (i j : X) (𝒜 : finset (finset X)) : finset (finset X) :=
-  @compress_remains _ i j 𝒜 ∪ @compress_motion _ i j 𝒜
+  compress_motion i j 𝒜 ∪ compress_remains i j 𝒜
 
   local notation `CC` := compress_family i j
 
-  lemma mem_compress_motion (A : finset X) : A ∈ compress_motion i j 𝒜 ↔ A ∈ 𝒜 ∧ C A ∈ 𝒜 :=
+  lemma mem_compress_remains (A : finset X) : A ∈ compress_remains i j 𝒜 ↔ A ∈ 𝒜 ∧ C A ∈ 𝒜 :=
   by rw mem_filter
 
-  lemma mem_compress_remains (A : finset X) : A ∈ compress_remains i j 𝒜 ↔ A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, C B = A) :=
+  lemma mem_compress_motion (A : finset X) : A ∈ compress_motion i j 𝒜 ↔ A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, C B = A) :=
   begin
-    simp [compress_remains], 
+    simp [compress_motion], 
     split; rintro ⟨p, q, r⟩,
       exact ⟨r ▸ q.2, p, ⟨q.1, r⟩⟩,
     exact ⟨q, ⟨r.1, r.2.symm ▸ p⟩, r.2⟩, 
   end
 
   lemma mem_compress {A : finset X} : A ∈ CC 𝒜 ↔ (A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, C B = A)) ∨ (A ∈ 𝒜 ∧ C A ∈ 𝒜) :=
-  by rw [compress_family, mem_union, mem_compress_motion, mem_compress_remains]
+  by rw [compress_family, mem_union, mem_compress_remains, mem_compress_motion]
 
-  lemma compress_disjoint (i j : fin n) : disjoint (compress_remains i j 𝒜) (compress_motion i j 𝒜) :=
+  lemma compress_disjoint (i j : fin n) : disjoint (compress_motion i j 𝒜) (compress_remains i j 𝒜) :=
   begin
     rw disjoint_left,
     intros A HA HB,
-    rw mem_compress_motion at HB,
-    rw mem_compress_remains at HA,
+    rw mem_compress_remains at HB,
+    rw mem_compress_motion at HA,
     exact HA.1 HB.1
   end
 
-  lemma inj_ish {i j : X} (A B : finset X) (hA : j ∈ A ∧ i ∉ A) (hY : j ∈ B ∧ i ∉ B) 
+  lemma inj_ish {i j : X} {A B : finset X} (hA : j ∈ A ∧ i ∉ A) (hY : j ∈ B ∧ i ∉ B) 
     (Z : insert i (erase A j) = insert i (erase B j)) : A = B := 
   begin
     ext x, split,
@@ -517,7 +482,7 @@ section
     split_ifs at HX Z,
       rw compress at HY Z,
       split_ifs at HY Z,
-        refine inj_ish A Y h h_1 Z,
+        exact inj_ish h h_1 Z,
       tauto,
     tauto
   end
@@ -541,12 +506,11 @@ section
         refine ⟨mem_insert_self _ _, _, _⟩,
           rw mem_insert,
           intro,
-          cases a,
-            safe,
-          apply not_mem_erase j B a,
+          rcases a with rfl, tauto,
+          exact not_mem_erase j B a,
         have: erase (insert j (insert i (erase B j))) i = B,
           rw [insert_erase_comm, insert_erase (mem_insert_of_mem h.1), erase_insert h.2], 
-          safe, 
+          rintro rfl, tauto,
         rwa this,
       rw HB at H, tauto,
     tauto
@@ -560,9 +524,8 @@ section
       rw compress at HB h₁,
       split_ifs at HB h₁,
         rw mem_insert at h₁,
-        cases h₁,
-          safe,
-        exfalso, apply not_mem_erase _ _ h₁,
+        rcases h₁ with rfl | h₁, tauto,
+        exfalso, exact not_mem_erase _ _ h₁,
       rwa ← HB,
     tauto
   end
@@ -638,7 +601,7 @@ section
     have z₂ := q₁ B₂ HB₂,
     have: i ≠ j := by rintro rfl; tauto,
     rw ← insert_erase_comm ‹i ≠ j›.symm at z₁ z₂,
-    apply inj_ish _ _ ⟨z₁.1, z₁.2.1⟩ ⟨z₂.1, z₂.2.1⟩, 
+    apply inj_ish ⟨z₁.1, z₁.2.1⟩ ⟨z₂.1, z₂.2.1⟩, 
     convert f₁, all_goals {rw insert_erase_comm ‹i ≠ j›.symm}
   end
 end
@@ -659,14 +622,13 @@ section
   lemma compress_size (A : finset X) (h₁ : U.card = V.card) : (C A).card = A.card :=
   begin
     rw compress, split_ifs, 
-    rw card_sdiff (subset.trans h.2 (subset_union_left _ _)), 
-    rw card_disjoint_union h.1.symm, rw h₁, apply nat.add_sub_cancel, 
+      rw [card_sdiff (subset.trans h.2 (subset_union_left _ _)), card_disjoint_union h.1.symm, h₁, nat.add_sub_cancel], 
     refl
   end
 
   lemma compress_idem (A : finset X) : C (C A) = C A :=
   begin
-    rw [compress, compress],
+    simp only [compress], 
     split_ifs,
         suffices: U = ∅,
           rw [this, union_empty, union_empty, sdiff_idem],
@@ -674,51 +636,47 @@ section
         rw ← disjoint_self_iff_empty,
         apply disjoint_of_subset_right (subset_union_right (A\V) _),
         rw [union_sdiff_distrib_right, ‹U \ V = U›] at h_1,
-        tauto,
-      refl,
-    refl,
+    all_goals { tauto }
   end
 
-  @[reducible] def compress_motion (𝒜 : finset (finset X)) : finset (finset X) := 𝒜.filter (λ A, C A ∈ 𝒜)
-  @[reducible] def compress_remains (𝒜 : finset (finset X)) : finset (finset X) := (𝒜.filter (λ A, C A ∉ 𝒜)).image (λ A, C A)
+  @[reducible] def compress_remains (𝒜 : finset (finset X)) : finset (finset X) := 𝒜.filter (λ A, C A ∈ 𝒜)
+  @[reducible] def compress_motion (𝒜 : finset (finset X)) : finset (finset X) := (𝒜.filter (λ A, C A ∉ 𝒜)).image (λ A, C A)
 
   def compress_family (U V : finset X) (𝒜 : finset (finset X)) : finset (finset X) :=
-  compress_remains U V 𝒜 ∪ compress_motion U V 𝒜
+  compress_motion U V 𝒜 ∪ compress_remains U V 𝒜
 
   local notation `CC` := compress_family U V
 
-  lemma mem_compress_motion (A : finset X) : A ∈ compress_motion U V 𝒜 ↔ A ∈ 𝒜 ∧ C A ∈ 𝒜 :=
+  lemma mem_compress_remains (A : finset X) : A ∈ compress_remains U V 𝒜 ↔ A ∈ 𝒜 ∧ C A ∈ 𝒜 :=
   by rw mem_filter
 
-  lemma mem_compress_remains (A : finset X) : A ∈ compress_remains U V 𝒜 ↔ A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, C B = A) :=
+  lemma mem_compress_motion (A : finset X) : A ∈ compress_motion U V 𝒜 ↔ A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, C B = A) :=
   begin
-    simp [compress_remains], 
+    simp [compress_motion], 
     split; rintro ⟨p, q, r⟩,
       exact ⟨r ▸ q.2, p, ⟨q.1, r⟩⟩,
     exact ⟨q, ⟨r.1, r.2.symm ▸ p⟩, r.2⟩, 
   end
 
+  @[reducible]
   def is_compressed (𝒜 : finset (finset X)) : Prop := CC 𝒜 = 𝒜
 
   lemma is_compressed_empty (𝒜 : finset (finset X)) : is_compressed ∅ ∅ 𝒜 := 
   begin
     have q: ∀ (A : finset X), compress ∅ ∅ A = A,
       simp [compress],
-    rw [is_compressed, compress_family], 
-    ext, rw mem_union, rw mem_compress_remains, rw mem_compress_motion,
-    repeat {conv in (compress ∅ ∅ _) {rw q _}},
-    safe
+    simp [is_compressed, compress_family, ext, q]
   end
 
   lemma mem_compress {A : finset X} : A ∈ CC 𝒜 ↔ (A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, C B = A)) ∨ (A ∈ 𝒜 ∧ C A ∈ 𝒜) :=
-  by rw [compress_family, mem_union, mem_compress_motion, mem_compress_remains]
+  by rw [compress_family, mem_union, mem_compress_remains, mem_compress_motion]
 
   lemma compress_family_size (r : ℕ) (𝒜 : finset (finset X)) (h₁ : U.card = V.card) (h₂ : is_layer 𝒜 r) : is_layer (CC 𝒜) r :=
   begin
     intros A HA,
     rw mem_compress at HA, 
-    rcases HA with ⟨_, _, z₁, z₂⟩ | ⟨z₁, _⟩,
-      rw ← z₂, rw compress_size _ _ _ h₁, 
+    rcases HA with ⟨_, _, z₁, rfl⟩ | ⟨z₁, _⟩,
+      rw compress_size _ _ _ h₁, 
     all_goals {apply h₂ _ z₁}
   end
 
@@ -727,42 +685,39 @@ section
     have: ∀ A ∈ compress_family U V 𝒜, compress U V A ∈ compress_family U V 𝒜,
       intros A HA,
       rw mem_compress at HA ⊢,
-      rw [compress_idem, and_self],
-      rcases HA with ⟨_, B, _, cB_eq_A⟩ | ⟨_, _⟩,
-        left, rw ← cB_eq_A, refine ⟨_, B, ‹_›, _⟩; rw compress_idem,
-        rwa cB_eq_A,
+      simp [compress_idem], 
+      rcases HA with ⟨_, B, _, rfl⟩ | ⟨_, _⟩,
+        left, refine ⟨_, B, ‹_›, _⟩; rwa compress_idem,
       right, assumption,
     have: filter (λ A, compress U V A ∉ compress_family U V 𝒜) (compress_family U V 𝒜) = ∅,
       rw ← filter_false (compress_family U V 𝒜),
       apply filter_congr,
       simpa,
-    rw [compress_family, compress_remains, this, image_empty, union_comm, compress_motion, ← this],
+    rw [compress_family, compress_motion, this, image_empty, union_comm, compress_remains, ← this],
     apply filter_union_filter_neg_eq (compress_family U V 𝒜)
   end
 
-  lemma compress_disjoint (U V : finset X) : disjoint (compress_remains U V 𝒜) (compress_motion U V 𝒜) :=
+  lemma compress_disjoint (U V : finset X) : disjoint (compress_motion U V 𝒜) (compress_remains U V 𝒜) :=
   begin
     rw disjoint_left,
     intros A HA HB,
-    rw mem_compress_motion at HB,
-    rw mem_compress_remains at HA,
+    rw mem_compress_remains at HB,
+    rw mem_compress_motion at HA,
     exact HA.1 HB.1
   end
 
-  lemma inj_ish {U V : finset X} (A B : finset X) (hA : disjoint U A ∧ V ⊆ A) (hB : disjoint U B ∧ V ⊆ B)
+  lemma inj_ish {U V : finset X} {A B : finset X} (hA : disjoint U A ∧ V ⊆ A) (hB : disjoint U B ∧ V ⊆ B)
     (Z : (A ∪ U) \ V = (B ∪ U) \ V) : A = B :=
   begin
     ext x, split,
     all_goals {
       intro p,
-      by_cases h₁: (x ∈ V), 
-        { exact hB.2 h₁ <|> exact hA.2 h₁ },
+      by_cases h₁: (x ∈ V), { exact hB.2 h₁ <|> exact hA.2 h₁ },
       have := mem_sdiff.2 ⟨mem_union_left U ‹_›, h₁⟩,
       rw Z at this <|> rw ← Z at this,
       rw [mem_sdiff, mem_union] at this,
       suffices: x ∉ U, tauto,
-      apply disjoint_right.1 _ p, tauto
-    }
+      apply disjoint_right.1 ‹disjoint _ _ ∧ _›.1 p }
   end
 
   lemma compressed_size : (CC 𝒜).card = 𝒜.card :=
@@ -777,7 +732,7 @@ section
     split_ifs at HX Z,
       rw compress at HY Z,
       split_ifs at HY Z,
-        refine inj_ish A Y h h_1 Z,
+        exact inj_ish h h_1 Z,
       tauto,
     tauto
   end
@@ -937,17 +892,13 @@ section
           rw disjoint_insert_right,
           exact ⟨‹_›, disjoint_sdiff⟩,
       convert this,
-      rw insert_union,
-      rw sdiff_union_of_subset (trans ‹U ⊆ B› (subset_union_left _ _)),
-      rw ← insert_union,
-      rw union_sdiff_self, symmetry,
-      rw sdiff_eq_self_iff_disjoint,
-      rw disjoint_insert_left,
+      rw [insert_union, sdiff_union_of_subset (trans ‹U ⊆ B› (subset_union_left _ _)), ← insert_union, union_sdiff_self], symmetry,
+      rw [sdiff_eq_self_iff_disjoint, disjoint_insert_left],
       split, assumption,
       rwa disjoint.comm,
     apply card_le_card_of_inj_on (λ B, (B ∪ V) \ U) (λ B HB, (q₁ B HB).2.2),
     intros B₁ HB₁ B₂ HB₂ k,
-    exact inj_ish B₁ B₂ ⟨(q₁ B₁ HB₁).2.1, (q₁ B₁ HB₁).1⟩ ⟨(q₁ B₂ HB₂).2.1, (q₁ B₂ HB₂).1⟩ k
+    exact inj_ish ⟨(q₁ B₁ HB₁).2.1, (q₁ B₁ HB₁).1⟩ ⟨(q₁ B₂ HB₂).2.1, (q₁ B₂ HB₂).1⟩ k
   end
 
   def bin_measure (A : finset X) : ℕ := A.sum (λ x, pow 2 x.val)
@@ -1056,7 +1007,7 @@ section
     rw [add_comm, add_lt_add_iff_left, sum_image],
       apply sum_lt_sum,
       { intro a₁,
-        rw [compress_remains, compress_motion, a₁, image_empty, empty_union] at a,
+        rw [compress_motion, compress_remains, a₁, image_empty, empty_union] at a,
         apply a,
         conv_rhs {rw ← @filter_union_filter_neg_eq _ (λ A, C A ∈ 𝒜) _ _ 𝒜}, conv {to_lhs, rw ← union_empty (filter _ 𝒜)},
         symmetry,
@@ -1071,7 +1022,7 @@ section
     have cy: compress U V y ≠ y, intro b, rw b at Hy, tauto,
     rw compress at k Hx cx, split_ifs at k Hx cx,
       rw compress at k Hy cy, split_ifs at k Hy cy,
-        apply inj_ish x y h_1 h_2 k,
+        exact inj_ish h_1 h_2 k,
       tauto,
     tauto,
   end
@@ -1260,7 +1211,7 @@ section
     }
   end
 
-  lemma up_to_is_IS (A : finset X) {r : ℕ} (h₁ : A.card = r) : is_init_seg_of_colex (everything_up_to A) r := 
+  lemma up_to_is_IS {A : finset X} {r : ℕ} (h₁ : A.card = r) : is_init_seg_of_colex (everything_up_to A) r := 
   and.right $ (IS_iff_le_max _ _).2 
   (by refine ⟨A, _, h₁, rfl⟩; rw [mem_everything_up_to]; refine ⟨rfl, le_refl _⟩)
 
@@ -1276,28 +1227,25 @@ section
       { rw bin_iff at h, rcases h with ⟨k, knotin, kin, h⟩,
         have: k ≠ i, rw mem_insert at knotin, tauto,
         cases lt_or_gt_of_ne this with h₁ h₁,
-          have q: i ∈ A := (h _ h₁).1 (mem_insert_self _ _), 
+        { have q: i ∈ A := (h _ h₁).1 (mem_insert_self _ _), 
           apply le_of_lt, rw bin_iff,
           refine ⟨i, ih, _, _⟩,
-            apply mem_erase_of_ne_of_mem _ q,
-            apply ne_of_gt, apply lt_of_le_of_lt _ h₁, 
-            apply min'_le _ _ _ kin,
-          intros x hx, have z := trans h₁ hx, have := h _ z, simp at this ⊢, 
+            apply mem_erase_of_ne_of_mem (ne_of_gt _) q,
+            apply lt_of_le_of_lt (min'_le _ _ _ kin) h₁, 
+          intros x hx, have z := trans h₁ hx, have := h _ z, simp only [mem_insert, mem_erase, ne.def] at this ⊢, 
           have a1: ¬x = min' A hA := ne_of_gt (lt_of_le_of_lt (min'_le _ hA _ q) hx), 
-          have a2: ¬x = i := ne_of_gt hx, tauto, 
-        cases lt_or_eq_of_le (min'_le _ hA _ kin),
-          apply le_of_lt, rw bin_iff,
-          refine ⟨k, mt mem_insert_of_mem knotin, mem_erase_of_ne_of_mem (ne_of_gt h_1) kin, _⟩,
-          intros x hx, have := h _ hx, simp at this ⊢,
-          have a1: ¬x = min' A hA := ne_of_gt (lt_of_le_of_lt (min'_le _ hA _ kin) hx), 
-          have a2: ¬x = i := ne_of_gt (trans hx h₁), tauto, 
-        apply le_of_eq,
-        congr, have: erase A (min' A hA) ⊆ B,
+          have a2: ¬x = i := ne_of_gt hx, tauto }, 
+        { rcases lt_or_eq_of_le (min'_le _ hA _ kin) with h_1 | rfl,
+            apply le_of_lt, rw bin_iff,
+            refine ⟨k, mt mem_insert_of_mem knotin, mem_erase_of_ne_of_mem (ne_of_gt h_1) kin, _⟩,
+            intros x hx, have := h _ hx, simp only [mem_insert, mem_erase, ne.def] at this ⊢,
+            have a1: ¬x = min' A hA := ne_of_gt (lt_of_le_of_lt (min'_le _ hA _ kin) hx), 
+            have a2: ¬x = i := ne_of_gt (trans hx h₁), tauto, 
+          apply ge_of_eq, congr,
+          apply eq_of_subset_of_card_le _ (ge_of_eq cards), 
           intros t th, rw mem_erase at th, 
-          have: k < t := h_1 ▸ (lt_of_le_of_ne (min'_le _ _ _ th.2) th.1.symm),
-          apply mem_of_mem_insert_of_ne ((h t this).2 th.2) (ne_of_gt (trans this h₁)),
-          symmetry,
-          apply eq_of_subset_of_card_le this (le_of_eq cards.symm) },
+          have: min' A hA < t, apply lt_of_le_of_ne (min'_le _ _ _ th.2) th.1.symm, 
+          apply mem_of_mem_insert_of_ne ((h t this).2 th.2) (ne_of_gt (trans this h₁)) } },
       { replace h := bin_measure_inj _ _ h,
         have z: i ∈ A, rw ← h, exact mem_insert_self _ _,
         rw [bin_measure, bin_measure, ← sdiff_singleton_eq_erase], 
@@ -1310,15 +1258,13 @@ section
     rw [mem_everything_up_to] at p,
     simp only [mem_shadow', mem_everything_up_to], 
     cases eq_or_lt_of_le p.2,
-      have: B = erase A (min' A hA) := bin_measure_inj _ _ h,
-      { rw this, refine ⟨min' A hA, not_mem_erase _ _, _⟩, rw insert_erase (min'_mem _ _), simp [le_refl] },
+      { rw bin_measure_inj _ _ h, refine ⟨min' A hA, not_mem_erase _ _, _⟩, rw insert_erase (min'_mem _ _), simp [le_refl] },
     rw bin_iff at h, rcases h with ⟨k, knotin, kin, h⟩,
     have kincomp := mem_sdiff.2 ⟨mem_univ _, knotin⟩,
     have jex: univ \ B ≠ ∅ := ne_empty_of_mem (mem_sdiff.2 ⟨mem_univ _, knotin⟩),
     set j := min' (univ \ B) jex,
     have jnotin: j ∉ B,
-      have: j ∈ univ \ B := min'_mem _ _, rw mem_sdiff at this, 
-      tauto,
+      have: j ∈ univ \ B := min'_mem _ _, rw mem_sdiff at this, tauto,
     have cards: card A = card (insert j B),
     { rw [card_insert_of_not_mem jnotin, ← p.1, card_erase_of_mem (min'_mem _ _), nat.pred_eq_sub_one, nat.sub_add_cancel], 
       apply nat.pos_of_ne_zero, rw ne, rw card_eq_zero, exact hA },
@@ -1340,27 +1286,27 @@ section
       simp at use ⊢, tauto }
   end
 
-  -- kill the condition
   lemma shadow_of_IS {𝒜 : finset (finset X)} (r : ℕ) (h₁ : is_init_seg_of_colex 𝒜 r) : is_init_seg_of_colex (∂𝒜) (r - 1) :=
   begin
-    cases nat.eq_zero_or_pos r with h0 hr,
+    rcases nat.eq_zero_or_pos r with rfl | hr,
       have: 𝒜 ⊆ finset.singleton ∅,
-      intros A hA, rw mem_singleton, rw ← card_eq_zero, rw ← h0, apply h₁.1 A hA, rw h0, simp, 
-      have := bind_sub_bind_of_sub_left this, rw [← shadow, singleton_bind, all_removals, image_empty, subset_empty] at this, 
-      rw this, split, rw [is_layer, forall_mem_empty_iff], trivial, rw forall_mem_empty_iff, trivial, 
+        intros A hA, rw mem_singleton, rw ← card_eq_zero, apply h₁.1 A hA,  
+      have := bind_sub_bind_of_sub_left all_removals this, simp [all_removals, shadow, subset_empty] at this,
+      simp [shadow, this, is_init_seg_of_colex, is_layer],
     by_cases h₂: 𝒜 = ∅,
-      rw h₂, rw shadow, rw bind_empty, rw is_init_seg_of_colex, rw is_layer, rw forall_mem_empty_iff, rw forall_mem_empty_iff, simp,
+      simp [h₂, shadow, is_init_seg_of_colex, is_layer],
     replace h₁ := and.intro h₂ h₁,
     rw IS_iff_le_max at h₁,
-    rcases h₁ with ⟨B, _, Bcard, rfl⟩, 
+    rcases h₁ with ⟨B, _, rfl, rfl⟩, 
     rw shadow_of_everything_up_to, 
-    apply up_to_is_IS,
-    rw card_erase_of_mem, rw Bcard, refl,
-    apply min'_mem, 
-    rw ← card_pos, rw Bcard, exact hr
+      apply up_to_is_IS,
+      rw card_erase_of_mem (min'_mem _ _), refl,
+    rwa ← card_pos
   end
 end
 end UV
+
+#eval UV.everything_up_to ({2,4,5} : finset (fin 6))
 
 section KK
   theorem kruskal_katona (r : ℕ) (𝒜 𝒞 : finset (finset X)) : 
@@ -1385,7 +1331,7 @@ section KK
     rintros ⟨Ar, Cr, cards, colex⟩,
     rcases exists_smaller_set 𝒜 𝒞.card cards with ⟨𝒜', prop, size⟩,
     have := kruskal_katona r 𝒜' 𝒞 ⟨λ A hA, Ar _ (prop hA), Cr, size, colex⟩,
-    transitivity, exact this, apply card_le_of_subset, rw [shadow, shadow], apply bind_sub_bind_of_sub_left prop
+    transitivity, exact this, apply card_le_of_subset, rw [shadow, shadow], apply bind_sub_bind_of_sub_left _ prop
   end
 
   theorem iterated (r k : ℕ) (𝒜 𝒞 : finset (finset X)) : 

@@ -63,7 +63,7 @@ lemma exists_intermediate_set {α : Type*} [decidable_eq α] (A B : finset α) (
 begin
   rcases nat.le.dest h₁ with ⟨k, _⟩, clear h₁, revert A,
   induction k with k ih,
-    simp, intros A BsubA cards, exact ⟨A, BsubA, subset.refl _, cards.symm⟩,
+    intros A BsubA cards, exact ⟨A, BsubA, subset.refl _, cards.symm⟩,
   intros A BsubA cards, 
   have: ∃ i, i ∈ A \ B, rw [exists_mem_iff_ne_empty, ← ne, ← card_pos, card_sdiff BsubA, ← cards, nat.add_right_comm, nat.add_sub_cancel, nat.add_succ], apply nat.succ_pos,
   rcases this with ⟨a, ha⟩,
@@ -82,13 +82,13 @@ begin
   simp at x₂, exact ⟨B, x₁, x₂⟩, simpa,
 end
 
-lemma bind_sub_bind_of_sub_left {α β : Type*} [decidable_eq β] {s₁ s₂ : finset α} {t : α → finset β} (h : s₁ ⊆ s₂) : s₁.bind t ⊆ s₂.bind t :=
+lemma bind_sub_bind_of_sub_left {α β : Type*} [decidable_eq β] {s₁ s₂ : finset α} (t : α → finset β) (h : s₁ ⊆ s₂) : s₁.bind t ⊆ s₂.bind t :=
 by intro x; simp; intros y hy hty; refine ⟨y, h hy, hty⟩
 
 section big_operators
   lemma sum_div {α β : Type*} [division_ring β] {s : finset α} {f : α → β} {b : β} : s.sum f / b = s.sum (λx, f x / b) :=
   calc s.sum f / b = s.sum (λ x, f x * (1 / b)) : by rw [div_eq_mul_one_div, sum_mul]
-      ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div (f x) b
+       ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div (f x) b
 end big_operators
 
 section nat
@@ -98,3 +98,35 @@ section nat
     rw [this, nat.choose_symm], apply nat.le.intro, symmetry, rwa add_comm
   end
 end nat
+
+section natchoose
+  lemma dominate_choose_lt {r n : ℕ} (h : r < n/2) : nat.choose n r ≤ nat.choose n (r+1) :=
+  begin
+    refine le_of_mul_le_mul_right _ (nat.lt_sub_left_of_add_lt (lt_of_lt_of_le h (nat.div_le_self n 2))),
+    rw ← nat.choose_succ_right_eq,
+    apply nat.mul_le_mul_left,
+    rw [← nat.lt_iff_add_one_le, nat.lt_sub_left_iff_add_lt, ← mul_two],
+    exact lt_of_lt_of_le (mul_lt_mul_of_pos_right h zero_lt_two) (nat.div_mul_le_self n 2),
+  end
+
+  lemma dominate_choose_lt' {n r : ℕ} (hr : r ≤ n/2) : nat.choose n r ≤ nat.choose n (n/2) :=
+  begin
+    refine @nat.decreasing_induction (λ k, k ≤ n/2 → nat.choose n k ≤ nat.choose n (n/2)) (λ m k a, _) r (n/2) hr (λ _, by refl) hr,
+    rcases eq_or_lt_of_le a with rfl | h, refl,
+    exact trans (dominate_choose_lt h) (k h)
+  end 
+
+  lemma dominate_choose {r n : ℕ} : nat.choose n r ≤ nat.choose n (n/2) :=
+  begin
+    cases le_or_gt r n with b b,
+      cases le_or_lt r (n/2) with a h,
+        apply dominate_choose_lt' a,
+      rw ← nat.choose_symm b,
+      apply dominate_choose_lt',
+      rw [nat.div_lt_iff_lt_mul' zero_lt_two] at h,
+      rw [nat.le_div_iff_mul_le' zero_lt_two, nat.mul_sub_right_distrib, nat.sub_le_iff, mul_two, nat.add_sub_cancel],
+      exact le_of_lt h,
+    rw nat.choose_eq_zero_of_lt b,
+    apply zero_le
+  end
+end natchoose
