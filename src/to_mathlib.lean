@@ -22,26 +22,19 @@ lemma sdiff_union_distrib_left {α : Type*} [decidable_eq α] (s t₁ t₂ : fin
 lemma union_eq_left_of_subset {α : Type*} [decidable_eq α] {s t : finset α} (h : t ⊆ s) : s ∪ t = s := by simp only [ext, mem_union]; tauto
 
 lemma sdiff_eq_self_of_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : disjoint s t → s \ t = s :=
-begin
-  intro p, rw disjoint_iff_inter_eq_empty at p,
-  exact union_empty (s \ t) ▸ (p ▸ sdiff_union_inter s t)
-end
+by simp [ext, disjoint_left]; tauto
 
-lemma sdiff_eq_self_iff_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : s \ t = s ↔ disjoint s t := 
-begin
-  split, intro p,
-    rw ← p, apply sdiff_disjoint,
-  exact sdiff_eq_self_of_disjoint
-end
+lemma sdiff_eq_self_iff_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : s \ t = s ↔ disjoint s t :=
+⟨λ p, p ▸ sdiff_disjoint, sdiff_eq_self_of_disjoint⟩
 
 lemma disjoint_self_iff_empty {α : Type*} [decidable_eq α] (s : finset α) : disjoint s s ↔ s = ∅ :=
 disjoint_self
 
-lemma sdiff_subset_left {α : Type*} [decidable_eq α] (s t : finset α) : s \ t ⊆ s := by have := sdiff_subset_sdiff (le_refl s) (empty_subset t); rwa sdiff_empty at this
+lemma sdiff_subset_left {α : Type*} [decidable_eq α] (s t : finset α) : s \ t ⊆ s := 
+by simp [subset_iff]; tauto
+
 lemma sdiff_partially_injective {α : Type*} [decidable_eq α] {s t₁ t₂ : finset α} : s \ t₁ = s \ t₂ → s ∩ t₁ = s ∩ t₂ :=
-begin
-  simp [ext], intros b c, replace b := b c, split; tauto 
-end
+by simp [ext]; intros b c; replace b := b c; split; tauto
 
 instance decidable_disjoint {α : Type*} [decidable_eq α] (U V : finset α) : decidable (disjoint U V) := 
 decidable_of_decidable_of_iff (by apply_instance) disjoint_iff_inter_eq_empty.symm

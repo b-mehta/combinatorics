@@ -105,15 +105,6 @@ section shadow
     exact all_removals_size (a _ ‹_›) _ ‹A ∈ all_removals B›,
   end
 
-  lemma sub_of_shadow {𝒜 : finset (finset α)} {B : finset α} : B ∈ ∂𝒜 → ∃ A ∈ 𝒜, B ⊆ A :=
-  begin
-    intro k,
-    rw mem_shadow at k,
-    rcases k with ⟨A, H, _, _, k⟩,
-    rw ← k,
-    exact ⟨A, H, erase_subset _ _⟩
-  end
-
   lemma sub_iff_shadow_one {𝒜 : finset (finset α)} {B : finset α} : B ∈ ∂𝒜 ↔ ∃ A ∈ 𝒜, B ⊆ A ∧ card (A \ B) = 1 :=
   begin
     rw mem_shadow', split, 
@@ -125,6 +116,9 @@ section shadow
     intro, have: j ∈ finset.singleton j, rw mem_singleton, rw ← eq at this, rw mem_sdiff at this, exact this.2 a, 
     rw ← union_singleton_eq_insert, rw ← eq, rwa sdiff_union_of_subset subs, 
   end
+
+  lemma sub_of_shadow {𝒜 : finset (finset α)} {B : finset α} : B ∈ ∂𝒜 → ∃ A ∈ 𝒜, B ⊆ A :=
+  by rw sub_iff_shadow_one; tauto
 
   lemma sub_iff_shadow_iter {𝒜 : finset (finset α)} {B : finset α} (k : ℕ) : 
     B ∈ (shadow^[k] 𝒜) ↔ ∃ A ∈ 𝒜, B ⊆ A ∧ card (A \ B) = k :=
@@ -722,12 +716,12 @@ section
       rw [← card_disjoint_union, union_comm, filter_union_filter_neg_eq],
       rw [disjoint_iff_inter_eq_empty, inter_comm],
       apply filter_inter_filter_neg_eq,
-    intros A HX Y HY Z,
-    rw mem_filter at HX HY,
-    rw compress at HX Z,
-    split_ifs at HX Z,
-      rw compress at HY Z,
-      split_ifs at HY Z,
+    intros A HA B HB Z,
+    rw mem_filter at HA HB,
+    rw compress at HA Z,
+    split_ifs at HA Z,
+      rw compress at HB Z,
+      split_ifs at HB Z,
         exact inj_ish h h_1 Z,
       tauto,
     tauto
