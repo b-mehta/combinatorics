@@ -91,6 +91,12 @@ section big_operators
   lemma sum_div {α β : Type*} [division_ring β] {s : finset α} {f : α → β} {b : β} : s.sum f / b = s.sum (λx, f x / b) :=
   calc s.sum f / b = s.sum (λ x, f x * (1 / b)) : by rw [div_eq_mul_one_div, sum_mul]
        ...         = s.sum (λ x, f x / b) : by congr; ext; rw ← div_eq_mul_one_div (f x) b
+
+  lemma sum_const_nat {α : Type*} {m : ℕ} {f : α → ℕ} {s : finset α} (h₁ : ∀x ∈ s, f x = m) : s.sum f = card s * m :=
+  begin
+    rw [← nat.smul_eq_mul, ← sum_const], 
+    apply sum_congr rfl h₁
+  end
 end big_operators
 
 section nat
@@ -132,3 +138,11 @@ section natchoose
     apply zero_le
   end
 end natchoose
+
+lemma div_nonneg_of_nonneg_of_nonneg {α : Type*} [discrete_linear_ordered_field α] {a b : α} : 0 ≤ a → 0 ≤ b → 0 ≤ a / b :=
+begin
+  intros ah bh,
+  cases eq_or_lt_of_le bh,
+    rw [← h, div_zero], 
+  apply div_nonneg_of_nonneg_of_pos ah h
+end

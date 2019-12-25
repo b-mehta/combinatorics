@@ -15,7 +15,7 @@ def example1 : finset (finset (fin 5)) :=
 section shadow
   def all_removals (A : finset α) : finset (finset α) := A.image (erase A)
 
-  lemma all_removals_size {A : finset α} {r : ℕ} (h : A.card = r) : is_layer (all_removals A) (r-1) := 
+  lemma all_removals_size {A : finset α} {r : ℕ} (h : A.card = r) : all_sized (all_removals A) (r-1) := 
   begin
     intros B H,
     rw [all_removals, mem_image] at H,
@@ -56,7 +56,7 @@ section shadow
       rw erase_insert Hi
   end
 
-  lemma shadow_layer {𝒜 : finset (finset α)} {r : ℕ} : is_layer 𝒜 r → is_layer (∂𝒜) (r-1) :=
+  lemma shadow_layer {𝒜 : finset (finset α)} {r : ℕ} : all_sized 𝒜 r → all_sized (∂𝒜) (r-1) :=
   begin
     intros a A H,
     rw [shadow, mem_bind] at H,
@@ -132,61 +132,35 @@ section local_lym
   def the_pairs (𝒜 : finset (finset α)) : finset (finset α × finset α) :=
   𝒜.bind (λ A, (all_removals A).image (prod.mk A))
 
-  lemma card_the_pairs {r : ℕ} (𝒜 : finset (finset α)) : is_layer 𝒜 r → (the_pairs 𝒜).card = 𝒜.card * r :=
+  lemma card_the_pairs {r : ℕ} (𝒜 : finset (finset α)) : all_sized 𝒜 r → (the_pairs 𝒜).card = 𝒜.card * r :=
   begin
     intro, rw [the_pairs, card_bind],
-    { convert (sum_congr rfl _),
-      { rw [← nat.smul_eq_mul, ← sum_const] }, 
-      intros,
-      rw [card_image_of_inj_on, card_all_removals (a _ H)],
-      exact (λ _ _ _ _ k, (prod.mk.inj k).2) },
+    convert sum_const_nat _,
+    intros x hx, rw card_image_of_inj_on, rw card_all_removals (a _ hx),
+    exact (λ _ _ _ _ k, (prod.mk.inj k).2),
     simp only [disjoint_left, mem_image],
     rintros _ _ _ _ k a ⟨_, _, rfl⟩ ⟨_, _, a₂⟩,
-    exact k (prod.mk.inj a₂.symm).1,
+    exact k (prod.mk.inj a₂.symm).1
   end
 
   def from_below [fintype α] (𝒜 : finset (finset α)) : finset (finset α × finset α) :=
   (∂𝒜).bind (λ B, (univ \ B).image (λ x, (insert x B, B)))
 
-  lemma mem_the_pairs {𝒜 : finset (finset α)} (A B : finset α) : (A,B) ∈ the_pairs 𝒜 ↔ A ∈ 𝒜 ∧ B ∈ all_removals A :=
-  begin
-    simp only [the_pairs, mem_bind, mem_image],
-    split, 
-    { rintro ⟨a, Ha, b, Hb, h⟩, 
-      rw [(prod.mk.inj h).1, (prod.mk.inj h).2] at *,
-      exact ⟨Ha, Hb⟩ },
-    { intro h, exact ⟨A, h.1, B, h.2, rfl⟩}
-  end
-
-  lemma mem_from_below [fintype α] {𝒜 : finset (finset α)} (A B : finset α) : A ∈ 𝒜 ∧ (∃ (i ∉ B), insert i B = A) → (A,B) ∈ from_below 𝒜 :=
-  begin
-    rw [from_below, mem_bind],
-    rintro ⟨Ah, i, ih, a⟩,
-    refine ⟨B, _, _⟩,
-      rw mem_shadow',
-      refine ⟨i, ih, a.symm ▸ Ah⟩,
-    rw mem_image,
-    exact ⟨i, mem_sdiff.2 ⟨complete _, ih⟩, by rw a⟩,
-  end
-
   lemma above_sub_below [fintype α] (𝒜 : finset (finset α)) : the_pairs 𝒜 ⊆ from_below 𝒜 :=
   begin
-    rintros ⟨A,B⟩ h,
-    rw [mem_the_pairs, mem_all_removals] at h,
-    apply mem_from_below,
-    rcases h with ⟨Ah, i, ih, AeB⟩,
-    refine ⟨Ah, i, _, _⟩; rw ← AeB,
-      apply not_mem_erase,
-    apply insert_erase ih
+    rintros ⟨A,B⟩,
+    simp only [the_pairs, mem_all_removals, from_below, mem_shadow, true_and, and_imp, mem_bind, exists_prop, mem_sdiff, mem_image, prod.mk.inj_iff, exists_imp_distrib, mem_univ], 
+    rintros A Ah B i ih z rfl rfl, 
+    exact ⟨B, ⟨A, Ah, i, ih, z⟩, i, z ▸ not_mem_erase _ _, z ▸ insert_erase ih, rfl⟩
   end
 
-  lemma card_from_below [fintype α] {𝒜 : finset (finset α)} (r : ℕ) : is_layer 𝒜 r → (from_below 𝒜).card ≤ (∂𝒜).card * (card α - (r - 1)) :=
+  lemma card_from_below [fintype α] {𝒜 : finset (finset α)} (r : ℕ) : all_sized 𝒜 r → (from_below 𝒜).card ≤ (∂𝒜).card * (card α - (r - 1)) :=
   begin
     intro,
     rw [from_below],
     convert card_bind_le,
-    rw [← nat.smul_eq_mul, ← sum_const],
-    apply sum_congr rfl,
+    symmetry,
+    apply sum_const_nat, 
     intros, 
     rw [card_image_of_inj_on, card_univ_diff, shadow_layer a _ H],
     intros x1 x1h _ _ h,
@@ -195,10 +169,12 @@ section local_lym
     apply or.resolve_right q ((mem_sdiff.1 x1h).2),
   end
 
-  -- generalise this: can remove hr2 and possibly hr1
-  theorem local_lym [fintype α] {𝒜 : finset (finset α)} {r : ℕ} (hr1 : 1 ≤ r) (hr2 : r ≤ card α) (H : is_layer 𝒜 r):
+  theorem local_lym [fintype α] {𝒜 : finset (finset α)} {r : ℕ} (hr1 : 1 ≤ r) (H : all_sized 𝒜 r):
     (𝒜.card : ℚ) / nat.choose (card α) r ≤ (∂𝒜).card / nat.choose (card α) (r-1) :=
   begin
+    cases lt_or_le (card α) r with z hr2,
+      rw [choose_eq_zero_of_lt z, cast_zero, div_zero],  
+      apply div_nonneg_of_nonneg_of_nonneg; norm_cast, any_goals {apply nat.zero_le}, 
     apply multiply_out hr1 hr2,
     rw ← card_the_pairs _ H,
     transitivity,
@@ -217,23 +193,20 @@ section slice
   lemma mem_slice {𝒜 : finset (finset α)} {r : ℕ} {A : finset α} : A ∈ 𝒜#r ↔ A ∈ 𝒜 ∧ A.card = r :=
   by rw [slice, mem_filter]
 
-  lemma layered_slice {𝒜 : finset (finset α)} {r : ℕ} : is_layer (𝒜#r) r := λ _ h, (mem_slice.1 h).2
+  lemma layered_slice {𝒜 : finset (finset α)} {r : ℕ} : all_sized (𝒜#r) r := λ _ h, (mem_slice.1 h).2
 
   lemma ne_of_diff_slice {𝒜 : finset (finset α)} {r₁ r₂ : ℕ} {A₁ A₂ : finset α} (h₁ : A₁ ∈ 𝒜#r₁) (h₂ : A₂ ∈ 𝒜#r₂) : r₁ ≠ r₂ → A₁ ≠ A₂ :=
   mt (λ h, (layered_slice A₁ h₁).symm.trans ((congr_arg card h).trans (layered_slice A₂ h₂)))
 end slice
 
 section lym
-  def antichain (𝒜 : finset (finset α)) : Prop := ∀ A ∈ 𝒜, ∀ B ∈ 𝒜, A ≠ B → ¬(A ⊆ B)
-
   def decompose' [fintype α] (𝒜 : finset (finset α)) : Π (k : ℕ), finset (finset α)
     | 0 := 𝒜#(card α)
     | (k+1) := 𝒜#(card α - (k+1)) ∪ shadow (decompose' k)
 
-  lemma decompose'_layer [fintype α] (𝒜 : finset (finset α)) (k : ℕ) : is_layer (decompose' 𝒜 k) (card α - k) :=
+  lemma decompose'_layer [fintype α] (𝒜 : finset (finset α)) (k : ℕ) : all_sized (decompose' 𝒜 k) (card α - k) :=
   begin
-    induction k with k ih;
-      rw decompose',
+    induction k with k ih; rw decompose',
       apply layered_slice,
     rw ← union_layer,
     split,
@@ -256,7 +229,7 @@ section lym
     { apply nat.sub_lt_of_pos_le _ _ hr hk },
     { mono },
     obtain ⟨_, HB', HB''⟩ := sub_of_shadow HC,
-    refine ih (nat.lt_of_succ_lt hr) _ _ HA HB' (trans k_1 HB'')
+    exact ih (nat.lt_of_succ_lt hr) _ _ HA HB' (trans k_1 HB'')
   end
 
   lemma disjoint_of_antichain [fintype α] {𝒜 : finset (finset α)} {k : ℕ} (hk : k + 1 ≤ card α) (H : antichain 𝒜) : 
@@ -267,24 +240,11 @@ section lym
     sum (range (k+1)) (λ r, ((𝒜#(card α - r)).card : ℚ) / nat.choose (card α) (card α - r)) ≤ ((decompose' 𝒜 k).card : ℚ) / nat.choose (card α) (card α-k) :=
   begin
     induction k with k ih,
-      rw [sum_range_one, div_le_div_iff]; norm_cast, exact nat.choose_pos (nat.sub_le _ _), exact nat.choose_pos (nat.sub_le _ _),
+      simp [decompose'], 
     rw [sum_range_succ, decompose'],
-    have: (𝒜#(card α - (k + 1)) ∪ ∂decompose' 𝒜 k).card = (𝒜#(card α - (k + 1))).card + (∂decompose' 𝒜 k).card,
-      apply card_disjoint_union,
-      rw disjoint_iff_ne,
-      intros A hA B hB m,
-      apply antichain_prop hk (lt_add_one k) H A hA B hB,
-      rw m, refl,
-    rw this,
-    have: ↑((𝒜#(card α - (k + 1))).card + (∂decompose' 𝒜 k).card) / (nat.choose (card α) (card α - nat.succ k) : ℚ) = 
-          ((𝒜#(card α - (k + 1))).card : ℚ) / (nat.choose (card α) (card α - nat.succ k)) + ((∂decompose' 𝒜 k).card : ℚ) / (nat.choose (card α) ((card α) - nat.succ k)),
-      rw ← add_div,
-      norm_cast,
-    rw this,
-    apply add_le_add_left,
-    transitivity,
-      exact ih (le_of_lt hk),
-    apply local_lym (nat.le_sub_left_of_add_le hk) (nat.sub_le _ _) (decompose'_layer _ _)
+    convert add_le_add_left (trans (ih (le_of_lt hk)) _) _,
+    { rw [card_disjoint_union, ← add_div, cast_add], exact disjoint_of_antichain hk H }, 
+    { exact local_lym (nat.le_sub_left_of_add_le hk) (decompose'_layer _ _) }
   end
 
   lemma card_decompose_other [fintype α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 
