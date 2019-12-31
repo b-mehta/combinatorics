@@ -20,6 +20,7 @@ lemma sdiff_singleton_eq_erase {α : Type*} [decidable_eq α] (a : α) (s : fins
 lemma union_sdiff_distrib_right {α : Type*} [decidable_eq α] (s₁ s₂ t : finset α) : (s₁ ∪ s₂) \ t = s₁ \ t ∪ s₂ \ t := by simp only [ext, mem_sdiff, mem_union]; tauto
 lemma sdiff_union_distrib_left {α : Type*} [decidable_eq α] (s t₁ t₂ : finset α) : s \ (t₁ ∪ t₂) = (s \ t₁) ∩ (s \ t₂) := by simp only [ext, mem_union, mem_sdiff, mem_inter]; tauto
 lemma union_eq_left_of_subset {α : Type*} [decidable_eq α] {s t : finset α} (h : t ⊆ s) : s ∪ t = s := by simp only [ext, mem_union]; tauto
+lemma not_mem_sdiff_of_mem_right {α : Type*} [decidable_eq α] {a : α} {s t : finset α} (h : a ∈ t) : a ∉ s \ t := begin simp only [mem_sdiff, h, not_true, not_false_iff, and_false] end
 
 lemma sdiff_eq_self_of_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : disjoint s t → s \ t = s :=
 by simp [ext, disjoint_left]; tauto
@@ -82,6 +83,16 @@ lemma exists_smaller_set {α : Type*} [decidable_eq α] (A : finset α) (i : ℕ
 begin
   rcases exists_intermediate_set A ∅ i _ (empty_subset _) with ⟨B, _, x₁, x₂⟩, 
   simp at x₂, exact ⟨B, x₁, x₂⟩, simpa,
+end
+
+lemma exists_max {α β : Type*} [decidable_linear_order α] (s : finset β) (f : β → α)
+  (h : s ≠ ∅) : ∃ x ∈ s, ∀ x' ∈ s, f x' ≤ f x :=
+begin
+  have : s.image f ≠ ∅,
+    rwa [ne, image_eq_empty, ← ne.def],
+  cases max_of_ne_empty this with y hy,
+  rcases mem_image.mp (mem_of_max hy) with ⟨x, hx, rfl⟩,
+  exact ⟨x, hx, λ x' hx', le_max_of_mem (mem_image_of_mem f hx') hy⟩,
 end
 
 lemma bind_sub_bind_of_sub_left {α β : Type*} [decidable_eq β] {s₁ s₂ : finset α} (t : α → finset β) (h : s₁ ⊆ s₂) : s₁.bind t ⊆ s₂.bind t :=
