@@ -40,6 +40,14 @@ section shadow
   reserve prefix `∂`:90
   notation ∂𝒜 := shadow 𝒜
 
+  lemma shadow_empty : shadow (∅ : finset (finset α)) = ∅ := by rw [shadow, bind_empty]
+  lemma iter_shadow_empty (k : ℕ) : shadow^[k] (∅ : finset (finset α)) = ∅ :=
+  begin
+    induction k with k ih, rw iterate_zero, rwa [iterate_succ, shadow_empty]
+  end
+
+  lemma shadow_monotone {𝒜 ℬ : finset (finset α)} : 𝒜 ⊆ ℬ → ∂𝒜 ⊆ ∂ℬ := bind_sub_bind_of_sub_left _
+
   lemma mem_shadow {𝒜 : finset (finset α)} (B : finset α) : B ∈ shadow 𝒜 ↔ ∃ A ∈ 𝒜, ∃ i ∈ A, erase A i = B := 
   by simp only [shadow, all_removals, mem_bind, mem_image]
 
@@ -265,3 +273,29 @@ section lym
     apply nat.choose_pos (nat.zero_le _)
   end
 end lym
+
+theorem sperner [fintype α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 𝒜.card ≤ nat.choose (card α) (card α / 2) := 
+begin
+  have: sum (range (card α + 1)) (λ (r : ℕ), ((𝒜#r).card : ℚ) / nat.choose (card α) (card α/2)) ≤ 1,
+    transitivity,
+      swap,
+      exact lubell_yamamoto_meshalkin H,
+    apply sum_le_sum, intros r hr,
+    apply div_le_div_of_le_left; norm_cast,
+    { apply nat.zero_le },
+    { apply choose_pos, rw mem_range at hr, rwa ← nat.lt_succ_iff },
+    { apply dominate_choose },
+  rw [← sum_div, ← sum_nat_cast, div_le_one_iff_le] at this,
+    swap, norm_cast, apply nat.choose_pos, apply nat.div_le_self, 
+  norm_cast at this,
+  rw ← card_bind at this,
+    convert this,
+    simp only [ext, mem_slice, mem_bind, exists_prop, mem_range, lt_succ_iff],
+    intro a, split,
+      intro ha, refine ⟨a.card, card_le_of_subset (subset_univ _), ha, rfl⟩,
+    rintro ⟨_, _, q, _⟩, exact q,
+  intros x _ y _ ne,
+  rw disjoint_left,
+  intros a Ha k,
+  exact ne_of_diff_slice Ha k ne rfl
+end
