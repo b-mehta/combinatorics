@@ -15,12 +15,13 @@ disjoint_of_subset_right (inter_subset_right _ _) sdiff_disjoint
 @[simp] lemma sdiff_self {α : Type*} [decidable_eq α] (s : finset α) : s \ s = ∅ := by simp only [ext, not_mem_empty, iff_self, mem_sdiff, and_not_self, forall_true_iff]
 lemma inter_union_self {α : Type*} [decidable_eq α] (s t : finset α) : s ∩ (t ∪ s) = s := by simp only [ext, mem_inter, mem_union]; tauto
 lemma union_sdiff_self {α : Type*} [decidable_eq α] (s t : finset α) : (s ∪ t) \ t = s \ t := by simp only [ext, mem_union, mem_sdiff]; tauto
-lemma union_singleton_eq_insert {α : Type*} [decidable_eq α] (a : α) (s : finset α) : finset.singleton a ∪ s = insert a s := rfl
+lemma singleton_union_eq_insert {α : Type*} [decidable_eq α] (a : α) (s : finset α) : finset.singleton a ∪ s = insert a s := rfl
 lemma sdiff_singleton_eq_erase {α : Type*} [decidable_eq α] (a : α) (s : finset α) : s \ finset.singleton a = erase s a := begin ext, rw [mem_erase, mem_sdiff, mem_singleton], tauto end
 lemma union_sdiff_distrib_right {α : Type*} [decidable_eq α] (s₁ s₂ t : finset α) : (s₁ ∪ s₂) \ t = s₁ \ t ∪ s₂ \ t := by simp only [ext, mem_sdiff, mem_union]; tauto
 lemma sdiff_union_distrib_left {α : Type*} [decidable_eq α] (s t₁ t₂ : finset α) : s \ (t₁ ∪ t₂) = (s \ t₁) ∩ (s \ t₂) := by simp only [ext, mem_union, mem_sdiff, mem_inter]; tauto
 lemma union_eq_left_of_subset {α : Type*} [decidable_eq α] {s t : finset α} (h : t ⊆ s) : s ∪ t = s := by simp only [ext, mem_union]; tauto
 lemma not_mem_sdiff_of_mem_right {α : Type*} [decidable_eq α] {a : α} {s t : finset α} (h : a ∈ t) : a ∉ s \ t := begin simp only [mem_sdiff, h, not_true, not_false_iff, and_false] end
+lemma sdiff_sdiff_self_left {α : Type*} [decidable_eq α] (s t : finset α) : s \ (s \ t) = s ∩ t := by simp only [ext, mem_sdiff, mem_inter]; tauto
 
 lemma sdiff_eq_self_of_disjoint {α : Type*} [decidable_eq α] {s t : finset α} : disjoint s t → s \ t = s :=
 by simp [ext, disjoint_left]; tauto

@@ -81,7 +81,7 @@ section shadow
     rw card_eq_one at a_h_h, rcases a_h_h with ⟨subs, j, eq⟩, 
     use j, refine ⟨_, _⟩, 
     intro, have: j ∈ finset.singleton j, rw mem_singleton, rw ← eq at this, rw mem_sdiff at this, exact this.2 a, 
-    rw ← union_singleton_eq_insert, rw ← eq, rwa sdiff_union_of_subset subs, 
+    rw ← singleton_union_eq_insert, rw ← eq, rwa sdiff_union_of_subset subs, 
   end
 
   lemma sub_of_shadow {𝒜 : finset (finset α)} {B : finset α} : B ∈ ∂𝒜 → ∃ A ∈ 𝒜, B ⊆ A :=
@@ -237,7 +237,7 @@ section lym
     { apply nat.sub_lt_of_pos_le _ _ hr hk },
     { mono },
     obtain ⟨_, HB', HB''⟩ := sub_of_shadow HC,
-    exact ih (nat.lt_of_succ_lt hr) _ _ HA HB' (trans k_1 HB'')
+    exact ih (lt_of_succ_lt hr) _ _ HA HB' (trans k_1 HB'')
   end
 
   lemma disjoint_of_antichain [fintype α] {𝒜 : finset (finset α)} {k : ℕ} (hk : k + 1 ≤ card α) (H : antichain 𝒜) : 

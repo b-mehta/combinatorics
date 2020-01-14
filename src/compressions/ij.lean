@@ -7,7 +7,6 @@ variable {α : Type*}
 variables [decidable_eq α]
 
 namespace ij
-section   
   def compress (i j : α) (A : finset α) : finset α := 
   if j ∈ A ∧ i ∉ A
     then insert i (A.erase j)
@@ -204,5 +203,4 @@ section
     apply inj_ish ⟨z₁.1, z₁.2.1⟩ ⟨z₂.1, z₂.2.1⟩, 
     convert f₁, all_goals {rw insert_erase_comm ‹j ≠ i›}
   end
-end
 end ij
