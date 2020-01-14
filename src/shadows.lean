@@ -1,3 +1,6 @@
+/-
+Shadows of a set family, the local LYM and LYM theorems, and Sperner's lemma
+-/
 import data.finset
 import data.fintype
 import to_mathlib
@@ -12,7 +15,9 @@ variables {α : Type*} [decidable_eq α]
 def example1 : finset (finset (fin 5)) :=
 { {0,1,2}, {0,1,3}, {0,2,3}, {0,2,4} } 
 
+-- The shadow of a set family is everything we can get by removing an element from each set
 section shadow
+  -- Everything we get by removing one element from A
   def all_removals (A : finset α) : finset (finset α) := A.image (erase A)
 
   lemma all_removals_size {A : finset α} {r : ℕ} (h : A.card = r) : all_sized (all_removals A) (r-1) := 
@@ -35,6 +40,7 @@ section shadow
     by_contra a, apply q a ih
   end
 
+  -- The shadow is all sets formed by removing one element, and the iterated shadow (k times) is all sets formed by removing k elements
   def shadow (𝒜 : finset (finset α)) : finset (finset α) := 𝒜.bind all_removals
 
   reserve prefix `∂`:90
@@ -121,6 +127,11 @@ end shadow
 #eval example1
 #eval shadow example1
 
+
+-- The local LYM inequality says that if everything in A has size r,
+-- |A| / nat.choose (card α) r ≤ |∂𝒜| / nat.choose (card α) (r-1)
+-- In particular, note that A is a subset of powerset_len α r, and ∂A is a subset of powerset_len α (r-1), so this says that the shadow is 
+-- `more spread out` across its 'layer' than A was.
 section local_lym
   lemma multiply_out {A B n r : ℕ} (hr1 : 1 ≤ r) (hr2 : r ≤ n)
     (h : A * r ≤ B * (n - r + 1)) : (A : ℚ) / (nat.choose n r) ≤ B / nat.choose n (r-1) :=
@@ -137,6 +148,7 @@ section local_lym
     apply nat.choose_pos (le_trans (nat.pred_le _) hr2)
   end
 
+  -- We'll prove local LYM by a double counting argument. Here's the first set we'll count...
   def the_pairs (𝒜 : finset (finset α)) : finset (finset α × finset α) :=
   𝒜.bind (λ A, (all_removals A).image (prod.mk A))
 
@@ -151,9 +163,11 @@ section local_lym
     exact k (prod.mk.inj a₂.symm).1
   end
 
+  -- ... and here's the second set.
   def from_below [fintype α] (𝒜 : finset (finset α)) : finset (finset α × finset α) :=
   (∂𝒜).bind (λ B, (univ \ B).image (λ x, (insert x B, B)))
 
+  -- The first is a subset of the second, and it's not hard to find the cardinality of both sets...
   lemma above_sub_below [fintype α] (𝒜 : finset (finset α)) : the_pairs 𝒜 ⊆ from_below 𝒜 :=
   begin
     rintros ⟨A,B⟩,
@@ -177,6 +191,7 @@ section local_lym
     apply or.resolve_right q ((mem_sdiff.1 x1h).2),
   end
 
+  -- ...so we combine them to get local LYM.
   theorem local_lym [fintype α] {𝒜 : finset (finset α)} {r : ℕ} (hr1 : 1 ≤ r) (H : all_sized 𝒜 r):
     (𝒜.card : ℚ) / nat.choose (card α) r ≤ (∂𝒜).card / nat.choose (card α) (r-1) :=
   begin
@@ -207,7 +222,13 @@ section slice
   mt (λ h, (layered_slice A₁ h₁).symm.trans ((congr_arg card h).trans (layered_slice A₂ h₂)))
 end slice
 
+-- The LYM inequality says ∑_i |A#i|/(n choose i) ≤ 1 for an antichain A.
+-- Observe that A#i is all the stuff in A which has size i, and the collection of subsets of (fin n) with size i has size (n choose i).
+-- So, |A#i|/(n choose i) represents how much of each A can take up.
 section lym
+  -- Other proofs of LYM exist, but we'll do it by applying local LYM. 
+
+  -- The kth decomposition of 𝒜 is defined inductively, from the top down.
   def decompose' [fintype α] (𝒜 : finset (finset α)) : Π (k : ℕ), finset (finset α)
     | 0 := 𝒜#(card α)
     | (k+1) := 𝒜#(card α - (k+1)) ∪ shadow (decompose' k)
@@ -221,7 +242,8 @@ section lym
       apply layered_slice,
     apply shadow_layer ih,
   end
-
+  
+  -- Here's the first key proposition, helping to give the disjointness property in the next lemma.
   theorem antichain_prop [fintype α] {𝒜 : finset (finset α)} {r k : ℕ} (hk : k ≤ card α) (hr : r < k) (H : antichain 𝒜) :
   ∀ A ∈ 𝒜#(card α - k), ∀ B ∈ ∂decompose' 𝒜 r, ¬(A ⊆ B) :=
   begin
@@ -240,12 +262,14 @@ section lym
     exact ih (lt_of_succ_lt hr) _ _ HA HB' (trans k_1 HB'')
   end
 
+  -- This tells us that the kth decomposition is disjoint from the n-(k+1) -sized elements of 𝒜
   lemma disjoint_of_antichain [fintype α] {𝒜 : finset (finset α)} {k : ℕ} (hk : k + 1 ≤ card α) (H : antichain 𝒜) : 
     disjoint (𝒜#(card α - (k + 1))) (∂decompose' 𝒜 k) := 
   disjoint_left.2 $ λ A HA HB, antichain_prop hk (lt_add_one k) H A HA A HB (subset.refl _)
 
+  -- In particular, we can use induction to get a bound on any top part of the sum in LYM.
   lemma card_decompose'_other [fintype α] {𝒜 : finset (finset α)} {k : ℕ} (hk : k ≤ card α) (H : antichain 𝒜) : 
-    sum (range (k+1)) (λ r, ((𝒜#(card α - r)).card : ℚ) / nat.choose (card α) (card α - r)) ≤ ((decompose' 𝒜 k).card : ℚ) / nat.choose (card α) (card α-k) :=
+    sum (range (k+1)) (λ r, ((𝒜#(card α - r)).card : ℚ) / nat.choose (card α) (card α - r)) ≤ ((decompose' 𝒜 k).card : ℚ) / nat.choose (card α) (card α - k) :=
   begin
     induction k with k ih,
       simp [decompose'], 
@@ -255,6 +279,7 @@ section lym
     { exact local_lym (nat.le_sub_left_of_add_le hk) (decompose'_layer _ _) }
   end
 
+  -- And continuing this induction to the whole sum, we can bound the entire sum.
   lemma card_decompose_other [fintype α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 
     (range (card α + 1)).sum (λ r, ((𝒜#r).card : ℚ) / nat.choose (card α) r) ≤ (decompose' 𝒜 (card α)).card / nat.choose (card α) 0 :=
   begin
@@ -263,17 +288,23 @@ section lym
     apply sum_flip (λ r, ((𝒜#r).card : ℚ) / nat.choose (card α) r), 
   end
 
+  -- Finally, the bound on the RHS was just 1, so we're done.
   lemma lubell_yamamoto_meshalkin [fintype α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 
     (range (card α + 1)).sum (λ r, ((𝒜#r).card : ℚ) / nat.choose (card α) r) ≤ 1 :=
   begin
     transitivity,
       apply card_decompose_other H,
     rw div_le_iff; norm_cast,
-      simpa only [mul_one, nat.choose_zero_right, nat.sub_self] using size_in_layer (decompose'_layer 𝒜 (card α)),
+      simpa only [mul_one, nat.choose_zero_right, nat.sub_self] using number_of_fixed_size (decompose'_layer 𝒜 (card α)),
     apply nat.choose_pos (nat.zero_le _)
   end
 end lym
 
+-- Sperner's theorem gives a bound on the size of an antichain. Again, this can be proved in a few other ways, 
+-- but we'll use the machinery already developed.
+-- The idea is simple: with LYM, we get a bound on how much of A can have any particular size. 
+-- So to maximise the size of A, we'd like to fit it all into the term with the biggest denominator. 
+-- Alternatively, ∑_i |A#i|/(n choose i) ≤ 1, so ∑_i |A#i|/(n choose (n/2)) ≤ 1, so ∑_i |A#i| ≤ (n choose (n/2)), as required.
 theorem sperner [fintype α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 𝒜.card ≤ nat.choose (card α) (card α / 2) := 
 begin
   have: sum (range (card α + 1)) (λ (r : ℕ), ((𝒜#r).card : ℚ) / nat.choose (card α) (card α/2)) ≤ 1,

@@ -1,9 +1,16 @@
+/- 
+The colex ordering for finite sets
+-/
+
 import data.finset
 import data.fintype
 
 variable {α : Type*}
 
 open finset
+
+/- The colex ordering likes to avoid large numbers. For us, it's mostly used for sets of a fixed size. If the
+size is 3, colex on ℕ starts 123, 124, 134, 234, 125, 135, 235, 145, 245, 345, ... -/
 
 def colex_lt [has_lt α] (A B : finset α) : Prop := ∃ (k : α), (∀ {x}, k < x → (x ∈ A ↔ x ∈ B)) ∧ k ∉ A ∧ k ∈ B
 def colex_le [has_lt α] (A B : finset α) : Prop := colex_lt A B ∨ A = B
@@ -67,7 +74,7 @@ begin
     apply le_max', simp only [mem_union, mem_sdiff],
     tauto }
 end
--- TODO: is there a way of doing totality of ≤ without trichotomy of <? I think we need decidability of < on α but there might be another way
+-- TODO: is there a way of doing totality of ≤ without trichotomy of <? I think we need trichotomy of < on α but there might be another way
 instance [decidable_linear_order α] : is_total (finset α) (≤ᶜ) := ⟨λ A B, (trichotomous A B).elim3 (or.inl ∘ or.inl) (or.inl ∘ or.inr) (or.inr ∘ or.inl)⟩
 instance [decidable_linear_order α] : is_linear_order (finset α) (≤ᶜ) := {}
 instance [decidable_linear_order α] : is_incomp_trans (finset α) (<ᶜ) :=
@@ -89,6 +96,7 @@ instance colex_lt_decidable [decidable_linear_order α] [fintype α] (A B : fins
 instance colex_le_decidable [decidable_linear_order α] [fintype α] (A B : finset α) : decidable (A ≤ᶜ B) := or.decidable
 instance colex_decidable_order [decidable_linear_order α] [fintype α] : decidable_linear_order (finset α) := {decidable_le := infer_instance, ..colex_linear_order}
 
+/- If A is before B in colex, and everything in B is small, then everything in A is small. -/
 lemma max_colex [decidable_linear_order α] {A B : finset α} (t : α) (h₁ : A <ᶜ B) (h₂ : ∀ x ∈ B, x < t) : ∀ x ∈ A, x < t := 
 begin
   rw colex_lt at h₁, rcases h₁ with ⟨k, z, _, _⟩,

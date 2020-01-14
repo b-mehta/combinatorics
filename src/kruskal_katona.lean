@@ -1,3 +1,7 @@
+/- 
+The Kruskal-Katona theorem in a few different versions, and an application to the Erdos-Ko-Rado theorem.
+-/
+
 import algebra.geom_sum
 import data.finset
 import data.fintype
@@ -468,7 +472,7 @@ begin
     convert lt_of_le_of_lt (nat.add_le_add_left kk _) (nat.add_lt_add_right size _),
     convert nat.choose_succ_succ _ _, any_goals {rwa [nat.sub_one, nat.succ_pred_eq_of_pos]}, 
   apply not_le_of_lt this,
-  convert size_in_layer _, rw card_fin,
+  convert number_of_fixed_size _, rw card_fin,
   rw ← union_layer, refine ⟨‹_›, _⟩,
   intros B hB, rw sub_iff_shadow_iter at hB, 
   rcases hB with ⟨A, hA, _, cards⟩, rw [card_sdiff ‹B ⊆ A›, ‹all_sized 𝒜bar (n - r)› _ ‹A ∈ _›] at cards, 

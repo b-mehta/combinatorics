@@ -1,3 +1,7 @@
+/- 
+Basic definitions for finite sets which are useful for combinatorics.
+-/
+
 import data.finset
 import data.fintype
 
@@ -6,8 +10,10 @@ open finset
 variable {α : Type*}
 variable {r : ℕ}
 
+/- A family of sets is an antichain if no set is a subset of another -/
 def antichain (𝒜 : finset (finset α)) : Prop := ∀ A ∈ 𝒜, ∀ B ∈ 𝒜, A ≠ B → ¬(A ⊆ B)
 
+/- `all_sized A r` states that every set in A has size r -/
 def all_sized (A : finset (finset α)) (r : ℕ) : Prop := ∀ x ∈ A, card x = r
 
 lemma union_layer [decidable_eq α] {A B : finset (finset α)} : all_sized A r ∧ all_sized B r ↔ all_sized (A ∪ B) r :=
@@ -26,14 +32,10 @@ by intro x; rw mem_powerset_len; exact and_iff_right (subset_univ _)
 
 lemma powerset_len_iff_all_sized [fintype α] {𝒜 : finset (finset α)} : all_sized 𝒜 r ↔ 𝒜 ⊆ powerset_len r (fintype.elems α) :=
 begin
-  split; intros p A h,
-    rw mem_powerset_len_iff_card,
-    exact (p _ h),
-  rw ← mem_powerset_len_iff_card, 
-  exact p h
+  rw all_sized, apply forall_congr _, intro A, rw mem_powerset_len_iff_card
 end
 
-lemma size_in_layer [fintype α] {𝒜 : finset (finset α)} (h : all_sized 𝒜 r) : card 𝒜 ≤ nat.choose (fintype.card α) r :=
+lemma number_of_fixed_size [fintype α] {𝒜 : finset (finset α)} (h : all_sized 𝒜 r) : card 𝒜 ≤ nat.choose (fintype.card α) r :=
 begin
   rw [fintype.card, ← card_powerset_len],
   apply card_le_of_subset,

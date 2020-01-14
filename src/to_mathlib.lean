@@ -1,3 +1,7 @@
+/-
+A collection of useful lemmas that might be useful in mathlib, approximately sorted by where they belong
+-/
+
 import data.finset
 import algebra.big_operators
 import tactic
@@ -35,13 +39,15 @@ disjoint_self
 lemma sdiff_subset_left {α : Type*} [decidable_eq α] (s t : finset α) : s \ t ⊆ s := 
 by simp [subset_iff]; tauto
 
+-- This could be an iff
 lemma sdiff_partially_injective {α : Type*} [decidable_eq α] {s t₁ t₂ : finset α} : s \ t₁ = s \ t₂ → s ∩ t₁ = s ∩ t₂ :=
 by simp [ext]; intros b c; replace b := b c; split; tauto
 
 instance decidable_disjoint {α : Type*} [decidable_eq α] (U V : finset α) : decidable (disjoint U V) := 
 decidable_of_decidable_of_iff (by apply_instance) disjoint_iff_inter_eq_empty.symm
 
-lemma sum_lt_sum {α β : Type*} {s : finset α} {f g : α → β} [decidable_eq α] [ordered_cancel_comm_monoid β] : s ≠ ∅ → (∀ x ∈ s, f x < g x) → s.sum f < s.sum g := 
+lemma sum_lt_sum {α β : Type*} {s : finset α} {f g : α → β} [decidable_eq α] [ordered_cancel_comm_monoid β] : 
+  s ≠ ∅ → (∀ x ∈ s, f x < g x) → s.sum f < s.sum g := 
 begin
   apply finset.induction_on s, tauto, 
   intros x s not_mem ih _ assump, simp only [sum_insert not_mem],
@@ -62,6 +68,7 @@ begin
   simp [ih],
 end
 
+-- Given a set A and a set B inside it, we can shrink A to any appropriate size, and keep B inside it
 lemma exists_intermediate_set {α : Type*} [decidable_eq α] (A B : finset α) (i : ℕ) (h₁ : card A ≥ i + card B) (h₂ : B ⊆ A) : 
   ∃ (C : finset α), B ⊆ C ∧ C ⊆ A ∧ card C = i + card B :=
 begin
@@ -79,6 +86,7 @@ begin
   rintros t th, apply mem_erase_of_ne_of_mem _ (BsubA th), rintro rfl, rw mem_sdiff at ha, tauto
 end
 
+-- We can shrink A to any smaller size.
 lemma exists_smaller_set {α : Type*} [decidable_eq α] (A : finset α) (i : ℕ) (h₁ : card A ≥ i) : 
   ∃ (B : finset α), B ⊆ A ∧ card B = i :=
 begin

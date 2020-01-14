@@ -1,3 +1,9 @@
+/- 
+UV compressions are immensely useful to prove the Kruskal-Katona theorem. 
+The idea is that compressing a set family might decrease the size of its shadow, and so
+iterated compressions should hopefully minimise the shadow.
+-/
+
 import data.finset
 import data.fintype
 import to_mathlib
@@ -15,11 +21,13 @@ variables {n : ℕ}
 
 namespace UV  
   -- We'll only use this when |U| = |V| and U ∩ V = ∅
+  -- To UV-compress A, if it doesn't touch U and does contain V, we remove V and put U in.
   def compress (U V : finset α) (A : finset α) :=
   if disjoint U A ∧ (V ⊆ A)
     then (A ∪ U) \ V
     else A
 
+  -- Compression doesn't change the size of a set
   lemma compress_size (U V : finset α) (A : finset α) (h₁ : U.card = V.card) : (compress U V A).card = A.card :=
   begin
     rw compress, split_ifs, 
@@ -27,6 +35,7 @@ namespace UV
     refl
   end
 
+  -- And compression is idempotent
   lemma compress_idem (U V : finset α) (A : finset α) : compress U V (compress U V A) = compress U V A :=
   begin
     simp only [compress], 
@@ -40,11 +49,14 @@ namespace UV
     all_goals { tauto }
   end
 
+  -- Now to UV-compress a set family, we UV-compress all its elements, but if a set's compression is already present,
+  -- we keep the original. 
   @[reducible]
   def compress_remains (U V : finset α) (𝒜 : finset (finset α)) : finset (finset α) := 𝒜.filter (λ A, compress U V A ∈ 𝒜)
   @[reducible]
   def compress_motion (U V : finset α) (𝒜 : finset (finset α)) : finset (finset α) := (𝒜.filter (λ A, compress U V A ∉ 𝒜)).image (λ A, compress U V A)
 
+  -- This is done by keeping all the sets whose compression is present, and moving all the sets whose compression is not there.
   def compress_family (U V : finset α) (𝒜 : finset (finset α)) : finset (finset α) :=
   compress_motion U V 𝒜 ∪ compress_remains U V 𝒜
 
@@ -109,6 +121,7 @@ namespace UV
     exact HA.1 HB.1
   end
 
+  -- Compression is kinda injective.
   lemma inj_ish {U V : finset α} {A B : finset α} (hA : disjoint U A ∧ V ⊆ A) (hB : disjoint U B ∧ V ⊆ B)
     (Z : (A ∪ U) \ V = (B ∪ U) \ V) : A = B :=
   begin
@@ -123,6 +136,7 @@ namespace UV
       apply disjoint_right.1 ‹disjoint _ _ ∧ _›.1 p }
   end
 
+  -- Compressing a set family doesn't change its size.
   lemma compressed_size {𝒜 : finset (finset α)} (U V : finset α) : (compress_family U V 𝒜).card = 𝒜.card :=
   begin
     rw [compress_family, card_disjoint_union (compress_disjoint _ _), card_image_of_inj_on],
@@ -200,6 +214,8 @@ namespace UV
       assumption }
   end
 
+  -- Here's the key fact about compression. If, for all x ∈ U there is y ∈ V such that 𝒜 is (U-x,V-y)-compressed, then UV-compression 
+  -- will reduce the size of A's shadow.
   lemma compression_reduces_shadow {𝒜 : finset (finset α)} {U V : finset α} (h₁ : ∀ x ∈ U, ∃ y ∈ V, is_compressed (erase U x) (erase V y) 𝒜) (h₂ : U.card = V.card) : 
     (∂ compress_family U V 𝒜).card ≤ (∂𝒜).card := 
   begin
