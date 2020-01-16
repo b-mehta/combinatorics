@@ -1,5 +1,5 @@
 /-
-Shadows of a set family, the local LYM and LYM theorems, and Sperner's lemma
+Shadows of a set family, the local LYM and LYM theorems, and Sperner's theorem
 -/
 import data.finset
 import data.fintype
@@ -17,9 +17,10 @@ def example1 : finset (finset (fin 5)) :=
 
 -- The shadow of a set family is everything we can get by removing an element from each set
 section shadow
-  -- Everything we get by removing one element from A
+  -- Everything we get by removing one element from the set A
   def all_removals (A : finset α) : finset (finset α) := A.image (erase A)
 
+  -- When we remove any one element from A, each set has size r-1
   lemma all_removals_size {A : finset α} {r : ℕ} (h : A.card = r) : all_sized (all_removals A) (r-1) := 
   begin
     intros B H,
@@ -31,6 +32,7 @@ section shadow
   lemma mem_all_removals {A : finset α} {B : finset α} : B ∈ all_removals A ↔ ∃ i ∈ A, erase A i = B :=
   by simp only [all_removals, mem_image]
 
+  -- If A has size r, then there are r things we get by removing one element
   lemma card_all_removals {A : finset α} {r : ℕ} (H : card A = r) : (all_removals A).card = r :=
   begin
     rwa [all_removals, card_image_of_inj_on],
@@ -40,7 +42,8 @@ section shadow
     by_contra a, apply q a ih
   end
 
-  -- The shadow is all sets formed by removing one element, and the iterated shadow (k times) is all sets formed by removing k elements
+  -- The shadow of a set family 𝒜 is all sets we can get by removing one element from any set in 𝒜, 
+  -- and the (k times) iterated shadow is all sets we can get by removing k elements from any set in 𝒜, 
   def shadow (𝒜 : finset (finset α)) : finset (finset α) := 𝒜.bind all_removals
 
   reserve prefix `∂`:90
@@ -70,9 +73,10 @@ section shadow
       rw erase_insert Hi
   end
 
-  lemma shadow_layer {𝒜 : finset (finset α)} {r : ℕ} : all_sized 𝒜 r → all_sized (∂𝒜) (r-1) :=
+  -- Everything in the shadow is one smaller than things in the original.
+  lemma shadow_layer {𝒜 : finset (finset α)} {r : ℕ} (a : all_sized 𝒜 r) : all_sized (∂𝒜) (r-1) :=
   begin
-    intros a A H,
+    intros A H,
     rw [shadow, mem_bind] at H,
     rcases H with ⟨B, _, _⟩,
     exact all_removals_size (a _ ‹_›) _ ‹A ∈ all_removals B›,
@@ -90,28 +94,24 @@ section shadow
     rw ← singleton_union_eq_insert, rw ← eq, rwa sdiff_union_of_subset subs, 
   end
 
+  -- Being in the shadow means we're a subset of something in A.
   lemma sub_of_shadow {𝒜 : finset (finset α)} {B : finset α} : B ∈ ∂𝒜 → ∃ A ∈ 𝒜, B ⊆ A :=
   by rw sub_iff_shadow_one; tauto
 
   lemma sub_iff_shadow_iter {𝒜 : finset (finset α)} {B : finset α} (k : ℕ) : 
     B ∈ (shadow^[k] 𝒜) ↔ ∃ A ∈ 𝒜, B ⊆ A ∧ card (A \ B) = k :=
   begin
-    revert 𝒜 B,
-    induction k with k ih,
-      simp, intros 𝒜 B, 
+    induction k with k ih generalizing 𝒜 B,
+      simp [sdiff_eq_empty_iff_subset], 
       split,
-        intro p, refine ⟨B, p, subset.refl _, _⟩, apply eq_empty_of_forall_not_mem, intro x, rw mem_sdiff, tauto,
-      rintro ⟨A, _, _⟩, rw sdiff_eq_empty_iff_subset at a_h_right, have: A = B := subset.antisymm a_h_right.2 a_h_right.1,
-      rwa ← this,
-    simp, intros 𝒜 B, have := @ih (∂𝒜) B,
-    rw this, clear this ih,
+        intro p, exact ⟨B, p, subset.refl _, subset.refl _⟩,
+        rintro ⟨A, _, q⟩, rw ← subset.antisymm_iff at q, rwa q, 
+    simp, rw @ih (∂𝒜) B, clear ih,
     split, 
       rintro ⟨A, hA, BsubA, card_AdiffB_is_k⟩, rw sub_iff_shadow_one at hA, rcases hA with ⟨C, CinA, AsubC, card_CdiffA_is_1⟩,
       refine ⟨C, CinA, trans BsubA AsubC, _⟩,
       rw card_sdiff (trans BsubA AsubC), rw card_sdiff BsubA at card_AdiffB_is_k, rw card_sdiff AsubC at card_CdiffA_is_1,
-      by calc card C - card B = (card C - card A + card A) - card B : begin rw nat.sub_add_cancel, apply card_le_of_subset AsubC end 
-      ... = (card C - card A) + (card A - card B) : begin rw nat.add_sub_assoc, apply card_le_of_subset BsubA end
-      ... = k + 1 : begin rw [card_CdiffA_is_1, card_AdiffB_is_k, add_comm] end,
+      rw [← nat.sub_add_cancel (card_le_of_subset AsubC), nat.add_sub_assoc (card_le_of_subset BsubA), card_CdiffA_is_1, card_AdiffB_is_k, add_comm],
     rintro ⟨A, hA, _, _⟩, 
     have z: A \ B ≠ ∅, rw ← card_pos, rw a_h_right_right, exact nat.succ_pos _,
     rw [ne, ← exists_mem_iff_ne_empty] at z, 
@@ -122,17 +122,25 @@ section shadow
     { rw mem_shadow, refine ⟨A, hA, i, ‹_›, rfl⟩ }, 
     rw card_sdiff ‹B ⊆ erase A i›, rw card_erase_of_mem ‹i ∈ A›, rw nat.pred_sub, rw ← card_sdiff a_h_right_left, rw a_h_right_right, simp,
   end
+
+  lemma iter_shadow_sized {𝒜 : finset (finset α)} {r k : ℕ} (a : all_sized 𝒜 r) : all_sized (shadow^[k] 𝒜) (r-k) :=
+  begin
+    intro B, rw sub_iff_shadow_iter,
+    rintro ⟨A, hA, subs, card⟩, rw [card_sdiff ‹B ⊆ A›, a _ hA] at card, rw ← card, rw nat.sub_sub_self, 
+    rw ← a _ hA, apply card_le_of_subset ‹B ⊆ A›
+  end
 end shadow
 
 #eval example1
 #eval shadow example1
 
-
--- The local LYM inequality says that if everything in A has size r,
--- |A| / nat.choose (card α) r ≤ |∂𝒜| / nat.choose (card α) (r-1)
--- In particular, note that A is a subset of powerset_len α r, and ∂A is a subset of powerset_len α (r-1), so this says that the shadow is 
--- `more spread out` across its 'layer' than A was.
+-- If there is a fintype α which is our universe, informally write α^(r) for the set
+-- {A : finset α | |A| = r}. Then if 𝒜 is a subset of α^(r), we get that ∂𝒜 is a subset of α^(r-1).
+-- The local LYM inequality says 𝒜 'takes up less' of α^(r) than ∂𝒜 takes up of α^(r-1).
+-- In particular, 
+-- |𝒜| / choose |α| r ≤ |∂𝒜| / choose |α| (r-1)
 section local_lym
+  -- Start by multiplying out the inequality so it's in a slightly nicer form.
   lemma multiply_out {A B n r : ℕ} (hr1 : 1 ≤ r) (hr2 : r ≤ n)
     (h : A * r ≤ B * (n - r + 1)) : (A : ℚ) / (nat.choose n r) ≤ B / nat.choose n (r-1) :=
   begin
@@ -148,10 +156,12 @@ section local_lym
     apply nat.choose_pos (le_trans (nat.pred_le _) hr2)
   end
 
-  -- We'll prove local LYM by a double counting argument. Here's the first set we'll count...
+  -- We'll prove local LYM by a double counting argument. Here's the first set we'll count,
+  -- which is effectively {(A,B) | A ∈ 𝒜, B ∈ all_removals A}
   def the_pairs (𝒜 : finset (finset α)) : finset (finset α × finset α) :=
   𝒜.bind (λ A, (all_removals A).image (prod.mk A))
 
+  -- and here's how big it is: for each A ∈ 𝒜 there are r possible B, giving the exact cardinality.
   lemma card_the_pairs {r : ℕ} (𝒜 : finset (finset α)) : all_sized 𝒜 r → (the_pairs 𝒜).card = 𝒜.card * r :=
   begin
     intro, rw [the_pairs, card_bind],
@@ -163,11 +173,14 @@ section local_lym
     exact k (prod.mk.inj a₂.symm).1
   end
 
-  -- ... and here's the second set.
+  -- Here's the second set we'll count. We're trying to get the same set, but we count B first, so we 
+  -- overestimate a bit. It's pretty much
+  -- {(A,B) | B ∈ ∂𝒜, ∃ i ∉ B: A = B ∪ i}
   def from_below [fintype α] (𝒜 : finset (finset α)) : finset (finset α × finset α) :=
   (∂𝒜).bind (λ B, (univ \ B).image (λ x, (insert x B, B)))
 
-  -- The first is a subset of the second, and it's not hard to find the cardinality of both sets...
+  -- Note the first is a subset of the second: if A ∈ 𝒜 and B ∈ all_removals A then
+  -- certainly B ∈ ∂𝒜, and there's some i that was removed from A to make B.
   lemma above_sub_below [fintype α] (𝒜 : finset (finset α)) : the_pairs 𝒜 ⊆ from_below 𝒜 :=
   begin
     rintros ⟨A,B⟩,
@@ -176,22 +189,18 @@ section local_lym
     exact ⟨B, ⟨A, Ah, i, ih, z⟩, i, z ▸ not_mem_erase _ _, z ▸ insert_erase ih, rfl⟩
   end
 
-  lemma card_from_below [fintype α] {𝒜 : finset (finset α)} (r : ℕ) : all_sized 𝒜 r → (from_below 𝒜).card ≤ (∂𝒜).card * (card α - (r - 1)) :=
+  -- We can also find how big the second set is: for each B there are (|α| - r + 1) choices for what to put into it.
+  lemma card_from_below [fintype α] {𝒜 : finset (finset α)} {r : ℕ} (a : all_sized 𝒜 r) : (from_below 𝒜).card = (∂𝒜).card * (card α - (r - 1)) :=
   begin
-    intro,
-    rw [from_below],
-    convert card_bind_le,
-    symmetry,
-    apply sum_const_nat, 
-    intros, 
-    rw [card_image_of_inj_on, card_univ_diff, shadow_layer a _ H],
-    intros x1 x1h _ _ h,
-    have q := mem_insert_self x1 x, 
-    rw [(prod.mk.inj h).1, mem_insert] at q,
-    apply or.resolve_right q ((mem_sdiff.1 x1h).2),
+    rw [from_below, card_bind], 
+    apply sum_const_nat, intros,
+    rw [card_image_of_inj_on, card_univ_diff, shadow_layer a _ H], 
+    intros x1 x1h _ _ h, injection h,
+    have q := mem_insert_self x1 x, rw [h_1, mem_insert] at q, apply q.resolve_right (mem_sdiff.1 x1h).2,
+    intros _ _ _ _ t, rw disjoint_left, simp, intros, cc
   end
 
-  -- ...so we combine them to get local LYM.
+  -- Putting the inequalities together gives local LYM.
   theorem local_lym [fintype α] {𝒜 : finset (finset α)} {r : ℕ} (hr1 : 1 ≤ r) (H : all_sized 𝒜 r):
     (𝒜.card : ℚ) / nat.choose (card α) r ≤ (∂𝒜).card / nat.choose (card α) (r-1) :=
   begin
@@ -199,14 +208,12 @@ section local_lym
       rw [choose_eq_zero_of_lt z, cast_zero, div_zero],  
       apply div_nonneg_of_nonneg_of_nonneg; norm_cast, any_goals {apply nat.zero_le}, 
     apply multiply_out hr1 hr2,
-    rw ← card_the_pairs _ H,
-    transitivity,
-      apply card_le_of_subset (above_sub_below 𝒜),
-    rw ← nat.sub_sub_assoc hr2 hr1,
-    apply card_from_below _ H
+    rw [← card_the_pairs _ H, ← nat.sub_sub_assoc hr2 hr1, ← card_from_below H], 
+    apply card_le_of_subset, apply above_sub_below
   end
 end local_lym
 
+-- The rth slice of a set family is all of its elements which have size r.
 section slice
   def slice (𝒜 : finset (finset α)) (r : ℕ) : finset (finset α) := 𝒜.filter (λ i, card i = r)
 
@@ -216,10 +223,10 @@ section slice
   lemma mem_slice {𝒜 : finset (finset α)} {r : ℕ} {A : finset α} : A ∈ 𝒜#r ↔ A ∈ 𝒜 ∧ A.card = r :=
   by rw [slice, mem_filter]
 
-  lemma layered_slice {𝒜 : finset (finset α)} {r : ℕ} : all_sized (𝒜#r) r := λ _ h, (mem_slice.1 h).2
+  lemma sized_slice {𝒜 : finset (finset α)} {r : ℕ} : all_sized (𝒜#r) r := λ _ h, (mem_slice.1 h).2
 
   lemma ne_of_diff_slice {𝒜 : finset (finset α)} {r₁ r₂ : ℕ} {A₁ A₂ : finset α} (h₁ : A₁ ∈ 𝒜#r₁) (h₂ : A₂ ∈ 𝒜#r₂) : r₁ ≠ r₂ → A₁ ≠ A₂ :=
-  mt (λ h, (layered_slice A₁ h₁).symm.trans ((congr_arg card h).trans (layered_slice A₂ h₂)))
+  mt (λ h, (sized_slice A₁ h₁).symm.trans ((congr_arg card h).trans (sized_slice A₂ h₂)))
 end slice
 
 -- The LYM inequality says ∑_i |A#i|/(n choose i) ≤ 1 for an antichain A.
@@ -233,13 +240,14 @@ section lym
     | 0 := 𝒜#(card α)
     | (k+1) := 𝒜#(card α - (k+1)) ∪ shadow (decompose' k)
 
+  -- Everything in the kth decomposition has size n-k
   lemma decompose'_layer [fintype α] (𝒜 : finset (finset α)) (k : ℕ) : all_sized (decompose' 𝒜 k) (card α - k) :=
   begin
     induction k with k ih; rw decompose',
-      apply layered_slice,
+      apply sized_slice,
     rw ← union_layer,
     split,
-      apply layered_slice,
+      apply sized_slice,
     apply shadow_layer ih,
   end
   
@@ -267,7 +275,7 @@ section lym
     disjoint (𝒜#(card α - (k + 1))) (∂decompose' 𝒜 k) := 
   disjoint_left.2 $ λ A HA HB, antichain_prop hk (lt_add_one k) H A HA A HB (subset.refl _)
 
-  -- In particular, we can use induction to get a bound on any top part of the sum in LYM.
+  -- In particular, we can use induction and local LYM to get a bound on any top part of the sum in LYM.
   lemma card_decompose'_other [fintype α] {𝒜 : finset (finset α)} {k : ℕ} (hk : k ≤ card α) (H : antichain 𝒜) : 
     sum (range (k+1)) (λ r, ((𝒜#(card α - r)).card : ℚ) / nat.choose (card α) (card α - r)) ≤ ((decompose' 𝒜 k).card : ℚ) / nat.choose (card α) (card α - k) :=
   begin
@@ -317,7 +325,7 @@ begin
     { apply choose_pos, rw mem_range at hr, rwa ← nat.lt_succ_iff },
     { apply dominate_choose },
   rw [← sum_div, ← sum_nat_cast, div_le_one_iff_le] at this,
-    swap, norm_cast, apply nat.choose_pos, apply nat.div_le_self, 
+    swap, norm_cast, apply choose_pos, apply nat.div_le_self, 
   norm_cast at this,
   rw ← card_bind at this,
     convert this,

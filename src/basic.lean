@@ -4,6 +4,7 @@ Basic definitions for finite sets which are useful for combinatorics.
 
 import data.finset
 import data.fintype
+import tactic.fin_cases
 
 open finset
 
@@ -12,6 +13,7 @@ variable {r : ℕ}
 
 /- A family of sets is an antichain if no set is a subset of another -/
 def antichain (𝒜 : finset (finset α)) : Prop := ∀ A ∈ 𝒜, ∀ B ∈ 𝒜, A ≠ B → ¬(A ⊆ B)
+-- eg: {{1}, {4,6,7}, {2,4,5,6}} is an antichain
 
 /- `all_sized A r` states that every set in A has size r -/
 def all_sized (A : finset (finset α)) (r : ℕ) : Prop := ∀ x ∈ A, card x = r
@@ -27,6 +29,7 @@ begin
   all_goals {rw all_sized, intros, apply p, rw mem_union, tauto}, 
 end
 
+-- A couple of useful lemmas on fintypes 
 lemma mem_powerset_len_iff_card [fintype α] {r : ℕ} : ∀ (x : finset α), x ∈ powerset_len r (fintype.elems α) ↔ card x = r :=
 by intro x; rw mem_powerset_len; exact and_iff_right (subset_univ _)
 

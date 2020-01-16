@@ -46,26 +46,15 @@ by simp [ext]; intros b c; replace b := b c; split; tauto
 instance decidable_disjoint {α : Type*} [decidable_eq α] (U V : finset α) : decidable (disjoint U V) := 
 decidable_of_decidable_of_iff (by apply_instance) disjoint_iff_inter_eq_empty.symm
 
-lemma sum_lt_sum {α β : Type*} {s : finset α} {f g : α → β} [decidable_eq α] [ordered_cancel_comm_monoid β] : 
-  s ≠ ∅ → (∀ x ∈ s, f x < g x) → s.sum f < s.sum g := 
+-- There's a similar thing in finset already, but this one is sometimes more practical
+lemma min_ne_max_of_card {α : Type*} [decidable_linear_order α] {U : finset α} {h₁ : U ≠ ∅} (h₂ : 1 < card U) : min' U h₁ ≠ max' U h₁ := 
 begin
-  apply finset.induction_on s, tauto, 
-  intros x s not_mem ih _ assump, simp only [sum_insert not_mem],
-  apply lt_of_lt_of_le,
-    rw add_lt_add_iff_right (s.sum f),
-    exact assump x (mem_insert_self _ _),
-  rw add_le_add_iff_left,
-  by_cases (s = ∅), simp only [h, sum_empty], 
-  exact (le_of_lt $ ih h $ λ t, assump t ∘ mem_insert_of_mem),
-end
-
-lemma sum_flip {α : Type*} [add_comm_monoid α] {n : ℕ} (f : ℕ → α) : sum (range (n+1)) (λ r, f (n - r)) = sum (range (n+1)) (λ r, f r) :=
-begin
-  induction n with n ih,
-    rw [sum_range_one, sum_range_one],
-  rw sum_range_succ',
-  rw sum_range_succ _ (nat.succ n),
-  simp [ih],
+  intro,
+  apply not_le_of_lt h₂ (le_of_eq _), 
+  rw card_eq_one,
+  use max' U h₁,
+  rw eq_singleton_iff_unique_mem,
+  exact ⟨max'_mem _ _, λ t Ht, le_antisymm (le_max' U h₁ t Ht) (a ▸ min'_le U h₁ t Ht)⟩
 end
 
 -- Given a set A and a set B inside it, we can shrink A to any appropriate size, and keep B inside it
@@ -116,6 +105,28 @@ section big_operators
   begin
     rw [← nat.smul_eq_mul, ← sum_const], 
     apply sum_congr rfl h₁
+  end
+
+  lemma sum_lt_sum {α β : Type*} {s : finset α} {f g : α → β} [decidable_eq α] [ordered_cancel_comm_monoid β] : 
+    s ≠ ∅ → (∀ x ∈ s, f x < g x) → s.sum f < s.sum g := 
+  begin
+    apply finset.induction_on s, tauto, 
+    intros x s not_mem ih _ assump, simp only [sum_insert not_mem],
+    apply lt_of_lt_of_le,
+      rw add_lt_add_iff_right (s.sum f),
+      exact assump x (mem_insert_self _ _),
+    rw add_le_add_iff_left,
+    by_cases (s = ∅), simp only [h, sum_empty], 
+    exact (le_of_lt $ ih h $ λ t, assump t ∘ mem_insert_of_mem),
+  end
+
+  lemma sum_flip {α : Type*} [add_comm_monoid α] {n : ℕ} (f : ℕ → α) : sum (range (n+1)) (λ r, f (n - r)) = sum (range (n+1)) (λ r, f r) :=
+  begin
+    induction n with n ih,
+      rw [sum_range_one, sum_range_one],
+    rw sum_range_succ',
+    rw sum_range_succ _ (nat.succ n),
+    simp [ih],
   end
 end big_operators
 

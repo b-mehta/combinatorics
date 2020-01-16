@@ -50,7 +50,7 @@ namespace UV
   end
 
   -- Now to UV-compress a set family, we UV-compress all its elements, but if a set's compression is already present,
-  -- we keep the original. 
+  -- we keep the original...
   @[reducible]
   def compress_remains (U V : finset α) (𝒜 : finset (finset α)) : finset (finset α) := 𝒜.filter (λ A, compress U V A ∈ 𝒜)
   @[reducible]
@@ -85,6 +85,7 @@ namespace UV
     A ∈ compress_family U V 𝒜 ↔ (A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, compress U V B = A)) ∨ (A ∈ 𝒜 ∧ compress U V A ∈ 𝒜) :=
   by rw [compress_family, mem_union, mem_compress_remains, mem_compress_motion]
 
+  -- Compressing a set doesn't change it's size, so compressing a family keeps all sets the same size.
   lemma compress_family_size (r : ℕ) (𝒜 : finset (finset α)) (U V : finset α) (h₁ : U.card = V.card) (h₂ : all_sized 𝒜 r) : 
     all_sized (compress_family U V 𝒜) r :=
   begin
@@ -95,6 +96,7 @@ namespace UV
     all_goals {apply h₂ _ z₁}
   end
 
+  -- Compressing a family is idempotent
   lemma compress_family_idempotent (U V : finset α) (𝒜 : finset (finset α)) : compress_family U V (compress_family U V 𝒜) = compress_family U V 𝒜 :=
   begin
     have: ∀ A ∈ compress_family U V 𝒜, compress U V A ∈ compress_family U V 𝒜,
@@ -154,6 +156,7 @@ namespace UV
     tauto
   end
 
+  -- If A is in the compressed family but V is a subset of A, A must have been in the original family.
   lemma compress_held {𝒜 : finset (finset α)} {U V : finset α} {A : finset α} (h₁ : A ∈ compress_family U V 𝒜) (h₂ : V ⊆ A) (h₃ : U.card = V.card) : A ∈ 𝒜 :=
   begin
     rw mem_compress at h₁,
@@ -172,6 +175,8 @@ namespace UV
     tauto,
   end
 
+  -- If A is not in the original family but is in the compressed family, then 
+  -- A has been compressed, and its original was in the original family
   lemma compress_moved {𝒜 : finset (finset α)} {U V : finset α} {A : finset α} (h₁ : A ∈ compress_family U V 𝒜) (h₂ : A ∉ 𝒜) : U ⊆ A ∧ disjoint V A ∧ (A ∪ V) \ U ∈ 𝒜 :=
   begin
     rw mem_compress at h₁,
@@ -188,6 +193,8 @@ namespace UV
     tauto
   end
 
+  -- If A is in the compressed family and does move under compression, then the compressed version
+  -- was in the original family.
   lemma uncompressed_was_already_there {𝒜 : finset (finset α)} {U V : finset α} {A : finset α} (h₁ : A ∈ compress_family U V 𝒜) (h₂ : V ⊆ A) (h₃ : disjoint U A) : (A ∪ U) \ V ∈ 𝒜 :=
   begin
     rw mem_compress at h₁,
@@ -214,8 +221,8 @@ namespace UV
       assumption }
   end
 
-  -- Here's the key fact about compression. If, for all x ∈ U there is y ∈ V such that 𝒜 is (U-x,V-y)-compressed, then UV-compression 
-  -- will reduce the size of A's shadow.
+  -- Here's the key fact about compression for KK. If, for all x ∈ U there is y ∈ V such that 𝒜 is (U-x,V-y)-compressed, 
+  -- then UV-compression will reduce the size of A's shadow.
   lemma compression_reduces_shadow {𝒜 : finset (finset α)} {U V : finset α} (h₁ : ∀ x ∈ U, ∃ y ∈ V, is_compressed (erase U x) (erase V y) 𝒜) (h₂ : U.card = V.card) : 
     (∂ compress_family U V 𝒜).card ≤ (∂𝒜).card := 
   begin

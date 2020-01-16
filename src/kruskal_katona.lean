@@ -21,6 +21,9 @@ variables {n : ℕ}
 
 namespace UV
 section 
+  -- Applying the compression makes the set smaller in colex
+  -- This is intuitive since a portion of the set is being shifted 'down' 
+  -- as max U < max V
   lemma compression_reduces_set [decidable_linear_order α] {U V : finset α} {hU : U ≠ ∅} {hV : V ≠ ∅} (A : finset α) (h : max' U hU < max' V hV): 
     compress U V A ≠ A → compress U V A <ᶜ A :=
   begin
@@ -38,7 +41,10 @@ section
     have z := geom_sum_mul_add 1 k, rw [geom_series, mul_one] at z, 
     simp only [nat.pow_eq_pow] at z, rw ← z, apply nat.lt_succ_self
   end
-  lemma binary_iff (A B : finset ℕ) : A.sum (pow 2) < B.sum (pow 2) ↔ A <ᶜ B:=
+
+  -- We have an equivalent relation to the colex order, for subsets of ℕ.
+  -- Note this gives a proof that <ᶜ is decidable for α = ℕ, which we didn't have before.
+  lemma binary_iff (A B : finset ℕ) : A.sum (pow 2) < B.sum (pow 2) ↔ A <ᶜ B :=
   begin
     have z: ∀ (A B : finset ℕ), A <ᶜ B → A.sum (pow 2) < B.sum (pow 2),
       rintro A B ⟨k, maxi, notinA, inB⟩,
@@ -54,8 +60,10 @@ section
     refine ⟨λ h, (trichotomous A B).resolve_right (λ h₁, h₁.elim _ (λ q, not_lt_of_gt h (z _ _ q))), z A B⟩, 
     rintro rfl, apply irrefl _ h
   end
+  -- This measures roughly how much we've compressed the family 
   def family_measure_fin (𝒜 : finset (finset (fin n))) : ℕ := 𝒜.sum (λ A, (A.image fin.val).sum (pow 2))
 
+  -- Applying a compression strictly decreases the measure
   lemma compression_reduces_family {U V : finset (fin n)} {hU : U ≠ ∅} {hV : V ≠ ∅} (h : max' U hU < max' V hV) (𝒜 : finset (finset (fin n))) : 
     compress_family U V 𝒜 ≠ 𝒜 → family_measure_fin (compress_family U V 𝒜) < family_measure_fin 𝒜 :=
   begin
@@ -86,18 +94,10 @@ section
     apply filter_inter_filter_neg_eq
   end
 
+  -- These are the compressions which decrease the "measure" of a family of sets
   def useful_compression [decidable_linear_order α] : rel (finset α) (finset α) := (λ U V, ∃ (HU : U ≠ ∅), ∃ (HV : V ≠ ∅), disjoint U V ∧ finset.card U = finset.card V ∧ max' U HU < max' V HV)
 
-  lemma min_ne_max_of_card [decidable_linear_order α] {U : finset α} {h₁ : U ≠ ∅} (h₂ : 1 < card U) : min' U h₁ ≠ max' U h₁ := 
-  begin
-    intro,
-    apply not_le_of_lt h₂ (le_of_eq _), 
-    rw card_eq_one,
-    use max' U h₁,
-    rw eq_singleton_iff_unique_mem,
-    exact ⟨max'_mem _ _, λ t Ht, le_antisymm (le_max' U h₁ t Ht) (a ▸ min'_le U h₁ t Ht)⟩
-  end
-
+  -- Applying the right compression will decrease measure, keep cardinality, keep sizes and decrease shadow
   lemma compression_improved {r : ℕ} (U V : finset (fin n)) (𝒜 : finset (finset (fin n))) (h : all_sized 𝒜 r) (h₁ : useful_compression U V) 
     (h₂ : ∀ U₁ V₁, useful_compression U₁ V₁ ∧ U₁.card < U.card → is_compressed U₁ V₁ 𝒜) (h₃ : ¬ is_compressed U V 𝒜): 
     family_measure_fin (compress_family U V 𝒜) < family_measure_fin 𝒜 ∧ (compress_family U V 𝒜).card = 𝒜.card ∧ all_sized (compress_family U V 𝒜) r ∧ (∂ compress_family U V 𝒜).card ≤ (∂𝒜).card := 
@@ -130,20 +130,24 @@ section
   end
 
   instance thing2 [decidable_linear_order α] (U V : finset α) : decidable (useful_compression U V) := by rw useful_compression; apply_instance
-  -- instance thing2 (U V : finset ℕ) (A : finset (finset ℕ)) : decidable (is_compressed U V A) := by rw is_compressed; apply_instance
 
+  -- The main KK helper: use induction with our measure and compression_improved to keep compressing until 
+  -- we can't any more, which gives a set family which is fully compressed.
   lemma kruskal_katona_helper (r : ℕ) (𝒜 : finset (finset (fin n))) (h : all_sized 𝒜 r) : 
     ∃ (ℬ : finset (finset (fin n))), (∂ℬ).card ≤ (∂𝒜).card ∧ 𝒜.card = ℬ.card ∧ all_sized ℬ r ∧ (∀ U V, useful_compression U V → is_compressed U V ℬ) := 
   begin
     refine @well_founded.recursion _ _ (measure_wf family_measure_fin) (λ (A : finset (finset (fin n))), all_sized A r → ∃ B, (∂B).card ≤ (∂A).card ∧ A.card = B.card ∧ all_sized B r ∧ ∀ (U V : finset (fin n)), useful_compression U V → is_compressed U V B) _ _ h,
     intros A ih z,
+    -- Are there any compressions we can make now?
     set usable: finset (finset (fin n) × finset (fin n)) := filter (λ t, useful_compression t.1 t.2 ∧ ¬ is_compressed t.1 t.2 A) ((powerset univ).product (powerset univ)), 
+    -- No. Then where we are is the required set family.
     by_cases (usable = ∅),
       refine ⟨A, le_refl _, rfl, z, _⟩, intros U V k,
       rw eq_empty_iff_forall_not_mem at h,
       by_contra,
       apply h ⟨U,V⟩,
       simp [a, k], exact ⟨subset_univ _, subset_univ _⟩,
+    -- Yes. Then apply the compression, then keep going
     rcases exists_min usable (λ t, t.1.card) ((nonempty_iff_ne_empty _).2 h) with ⟨⟨U,V⟩, uvh, t⟩, rw mem_filter at uvh,
     have h₂: ∀ U₁ V₁, useful_compression U₁ V₁ ∧ U₁.card < U.card → is_compressed U₁ V₁ A,
       intros U₁ V₁ h, by_contra, 
@@ -155,8 +159,11 @@ section
     exact ⟨B, trans q1 p1, trans p2.symm q2, q3, q4⟩
   end
 
+  -- is_init_seg_of_colex 𝒜 r means that everything in 𝒜 has size r, and that if B is below A in colex where B has size r and A is in 𝒜,
+  -- then B is also in 𝒜
   def is_init_seg_of_colex [has_lt α] (𝒜 : finset (finset α)) (r : ℕ) : Prop := all_sized 𝒜 r ∧ (∀ A ∈ 𝒜, ∀ B, B <ᶜ A ∧ B.card = r → B ∈ 𝒜)
 
+  -- Initial segments are nested in some way
   lemma init_seg_total [decidable_linear_order α] (𝒜₁ 𝒜₂ : finset (finset α)) (r : ℕ) (h₁ : is_init_seg_of_colex 𝒜₁ r) (h₂ : is_init_seg_of_colex 𝒜₂ r) : 𝒜₁ ⊆ 𝒜₂ ∨ 𝒜₂ ⊆ 𝒜₁ :=
   begin
     rw ← sdiff_eq_empty_iff_subset, rw ← sdiff_eq_empty_iff_subset,
@@ -168,6 +175,7 @@ section
       { exact Bh₂ (h₁.2 A Ah₁ B ⟨gt, h₂.1 B Bh₁⟩) },
   end
 
+  -- If we're compressed by all useful compressions, we're an initial segment
   lemma init_seg_of_compressed [decidable_linear_order α] (ℬ : finset (finset α)) (r : ℕ) (h₁ : all_sized ℬ r) (h₂ : ∀ U V, useful_compression U V → is_compressed U V ℬ): 
     is_init_seg_of_colex ℬ r := 
   begin
@@ -212,31 +220,36 @@ section
     rw mem_compress, left, refine ⟨_, B, Bh, rfl⟩, rwa cB_eq_A, 
   end
 
-  def all_under (A : finset ℕ) : finset (finset ℕ) := A.bind (λ k, filter (λ B, card A = card B) (image (λ B, B ∪ A.filter (λ x, x > k)) (powerset (range k))))
-  def all_up_to (A : finset ℕ) : finset (finset ℕ) := all_under A ∪ finset.singleton A
+  -- These currently aren't used but I think they could be
+  -- They give initial segments of colex with α = ℕ, in a different way to everything_up_to below.
+  -- KK could also in theory work with these
 
-  lemma mem_all_under (A B : finset ℕ) : B ∈ all_under A ↔ card A = card B ∧ B <ᶜ A :=
-  begin
-    simp [all_under, colex_lt], split,
-      rintro ⟨k, kinA, ⟨lows, lows_small, rfl⟩, cards⟩,
-      refine ⟨cards, k, _, _, kinA⟩, intros x hx, simp [hx], 
-        convert false_or _, simp only [eq_iff_iff, iff_false], intro, apply not_lt_of_gt hx, rw ← mem_range, apply lows_small a,
-      simp [kinA, not_or_distrib, le_refl], 
-      intro, have := lows_small a, apply not_mem_range_self this, 
-    rintro ⟨cards, k, z, knotinB, kinA⟩, 
-    refine ⟨k, kinA, ⟨filter (λ x, x < k) B, _, _⟩, cards⟩, 
-    intro, simp,
-    ext, simp, split, 
-      rintro (⟨a1l, a1r⟩ | ⟨a2l, a2r⟩), rwa z a1r, 
-      exact a2l,
-    intro, rcases (lt_or_gt_of_ne (ne_of_mem_of_not_mem a_1 knotinB)), 
-      right, exact ⟨‹_›, h⟩, 
-    left, rw ← z h, exact ⟨a_1, h⟩
-  end
+  -- def all_under (A : finset ℕ) : finset (finset ℕ) := A.bind (λ k, filter (λ B, card A = card B) (image (λ B, B ∪ A.filter (λ x, x > k)) (powerset (range k))))
+  -- def all_up_to (A : finset ℕ) : finset (finset ℕ) := all_under A ∪ finset.singleton A
 
-  lemma mem_all_up_to (A B : finset ℕ) : B ∈ all_up_to A ↔ (card A = card B ∧ B <ᶜ A) ∨ B = A :=
-  by simp [all_up_to, mem_all_under]; tauto
+  -- lemma mem_all_under (A B : finset ℕ) : B ∈ all_under A ↔ card A = card B ∧ B <ᶜ A :=
+  -- begin
+  --   simp [all_under, colex_lt], split,
+  --     rintro ⟨k, kinA, ⟨lows, lows_small, rfl⟩, cards⟩,
+  --     refine ⟨cards, k, _, _, kinA⟩, intros x hx, simp [hx], 
+  --       convert false_or _, simp only [eq_iff_iff, iff_false], intro, apply not_lt_of_gt hx, rw ← mem_range, apply lows_small a,
+  --     simp [kinA, not_or_distrib, le_refl], 
+  --     intro, have := lows_small a, apply not_mem_range_self this, 
+  --   rintro ⟨cards, k, z, knotinB, kinA⟩, 
+  --   refine ⟨k, kinA, ⟨filter (λ x, x < k) B, _, _⟩, cards⟩, 
+  --   intro, simp,
+  --   ext, simp, split, 
+  --     rintro (⟨a1l, a1r⟩ | ⟨a2l, a2r⟩), rwa z a1r, 
+  --     exact a2l,
+  --   intro, rcases (lt_or_gt_of_ne (ne_of_mem_of_not_mem a_1 knotinB)), 
+  --     right, exact ⟨‹_›, h⟩, 
+  --   left, rw ← z h, exact ⟨a_1, h⟩
+  -- end
 
+  -- lemma mem_all_up_to (A B : finset ℕ) : B ∈ all_up_to A ↔ (card A = card B ∧ B <ᶜ A) ∨ B = A :=
+  -- by simp [all_up_to, mem_all_under]; tauto
+
+  -- Gives all sets up to A with the same size as it: this is equivalent to being an initial segment of colex...
   def everything_up_to [fintype α] [decidable_linear_order α] (A : finset α) : finset (finset α) := filter (λ (B : finset α), A.card = B.card ∧ B ≤ᶜ A) (powerset univ)
 
   lemma mem_everything_up_to [fintype α] [decidable_linear_order α] (A B : finset α) : B ∈ everything_up_to A ↔ A.card = B.card ∧ B ≤ᶜ A :=
@@ -245,6 +258,7 @@ section
     intro a, refine ⟨subset_univ _, a⟩,
   end
 
+  -- ...which is proved here.
   lemma IS_iff_le_max [fintype α] [decidable_linear_order α] (𝒜 : finset (finset α)) (r : ℕ) : 
     𝒜 ≠ ∅ ∧ is_init_seg_of_colex 𝒜 r ↔ ∃ (A : finset α), A ∈ 𝒜 ∧ A.card = r ∧ 𝒜 = everything_up_to A := 
   begin
@@ -265,54 +279,67 @@ section
   and.right $ (IS_iff_le_max _ _).2 
   (by refine ⟨A, _, h₁, rfl⟩; simp [mem_everything_up_to, refl_of (≤ᶜ) A])
 
+  -- This is important for iterated KK: the shadow of an everything_up_to is also an everything_up_to...
   lemma shadow_of_everything_up_to [decidable_linear_order α] [fintype α] (A : finset α) (hA : A ≠ ∅) : ∂ (everything_up_to A) = everything_up_to (erase A (min' A hA)) :=
   begin
+    -- This is a pretty painful proof, with lots of cases.
     ext B, simp [mem_shadow', mem_everything_up_to], split,
+      -- First show that if B ∪ i ≤ A, then B ≤ A - min A
       rintro ⟨i, ih, p, t⟩,
       rw [card_insert_of_not_mem ih] at p,
       have cards: card (erase A (min' A hA)) = card B,
         rw [card_erase_of_mem (min'_mem _ _), p], refl,
-      rcases t with ⟨k, z, _, _⟩ | h, 
+      rcases t with ⟨k, z, _, _⟩ | h, -- cases on B ∪ i = A or B ∪ i < A
       { simp [cards], have: k ≠ i, rintro rfl, exact ‹k ∉ insert k B› (mem_insert_self _ _), 
+        -- B ∪ i < A, with k as the colex witness. Cases on k < i or k > i.
         cases lt_or_gt_of_ne this, 
-        { left, refine ⟨i, λ x hx, _, ih, _⟩, 
+        { left, refine ⟨i, λ x hx, _, ih, _⟩, -- When k < i, then i works as the colex witness to show B < A - min A
           { split; intro p, apply mem_erase_of_ne_of_mem, apply ne_of_gt (trans hx (lt_of_le_of_lt (min'_le _ _ _ ‹_›) h)), 
               rw ← z (trans h hx), apply mem_insert_of_mem p, 
             apply mem_of_mem_insert_of_ne _ (ne_of_gt hx), rw z (trans h hx), apply mem_of_mem_erase p },
           apply mem_erase_of_ne_of_mem, apply ne_of_gt (lt_of_le_of_lt _ h), apply min'_le, assumption,
           rw ← z h, apply mem_insert_self }, 
-        { rcases lt_or_eq_of_le (min'_le _ hA _ ‹k ∈ A›) with h₁ | rfl,
+        { rcases lt_or_eq_of_le (min'_le _ hA _ ‹k ∈ A›) with h₁ | rfl, -- When k > i, cases on min A < k or min A = k
+            -- If min A < k, k works as the colex witness for B < A - min A
             left, refine ⟨k, λ x hx, _, ‹k ∉ insert i B› ∘ mem_insert_of_mem, mem_erase_of_ne_of_mem (ne_of_gt h₁) ‹_›⟩, 
             simp [ne_of_gt (trans hx h₁)], rw ← z hx, rw mem_insert, simp [ne_of_gt (trans hx h)], 
+          -- If k = min A, then B = A - min A
           right, symmetry, apply eq_of_subset_of_card_le _ (ge_of_eq cards), intros t ht, 
           rw [mem_erase] at ht, have: t ≠ i := ne_of_gt (lt_of_lt_of_le h (min'_le _ _ _ ht.2)), 
           rw ← z _ at ht, apply mem_of_mem_insert_of_ne ht.2 ‹t ≠ i›, apply lt_of_le_of_ne (min'_le _ _ _ ht.2), 
           symmetry, exact ht.1 } },
-      { refine ⟨cards, _⟩,
+      { refine ⟨cards, _⟩, -- Here B ∪ i = A, do cases on i = min A or not
         by_cases q: (i = min' A hA),
           right, rw ← q, rw ← h, rw erase_insert ih, 
         left, refine ⟨i, λ x hx, _, ih, mem_erase_of_ne_of_mem q (h ▸ mem_insert_self _ _)⟩, rw mem_erase, split,
         intro, split, apply ne_of_gt, apply lt_of_le_of_lt _ hx, apply min'_le, rw ← h, apply mem_insert_self,
         rw ← h, apply mem_insert_of_mem a, rintro ⟨a, b⟩, rw ← h at b, apply mem_of_mem_insert_of_ne b (ne_of_gt hx) },
+    -- Now show that if B ≤ A - min A, there is j such that B ∪ j ≤ A
+    -- We choose j as the smallest thing not in B
     rintro ⟨cards', ⟨k, z, _, _⟩ | rfl⟩, set j := min' (univ \ B) (ne_empty_of_mem (mem_sdiff.2 ⟨complete _, ‹_›⟩)), 
-    have r: j ≤ k := min'_le _ _ _ _, 
-    have: j ∉ B, have: j ∈ univ \ B := min'_mem _ _, rw mem_sdiff at this, exact this.2,
-    have cards: card A = card (insert j B),
-    { rw [card_insert_of_not_mem ‹j ∉ B›, ← ‹_ = card B›, card_erase_of_mem (min'_mem _ _), nat.pred_eq_sub_one, nat.sub_add_cancel], 
-    apply nat.pos_of_ne_zero, rw ne, rw card_eq_zero, exact hA },
-    refine ⟨j, ‹_›, cards, _⟩, 
-    rcases (lt_or_eq_of_le r) with r | r₁, 
-    left, refine ⟨k, _, mt (λ t, mem_of_mem_insert_of_ne t (ne_of_gt r)) ‹k ∉ B›, mem_of_mem_erase ‹_›⟩, intros x hx, 
-    rw mem_insert, rw z hx, simp [ne_of_gt (trans hx r), ne_of_gt (lt_of_le_of_lt (min'_le _ _ _ (mem_of_mem_erase ‹_›)) hx)], 
-    right, symmetry, apply eq_of_subset_of_card_le, intros t th, rcases lt_trichotomy k t with lt|eq|gt,
-    { apply mem_insert_of_mem, rw z lt, apply mem_erase_of_ne_of_mem _ th, apply ne_of_gt (lt_of_le_of_lt _ lt), apply min'_le _ _ _ (mem_of_mem_erase ‹_›) },
-    { rw [← eq, r₁], apply mem_insert_self },
-    { apply mem_insert_of_mem, rw ← r₁ at gt, by_contra, apply not_lt_of_le (min'_le (univ \ B) _ t _) gt, rw mem_sdiff, exact ⟨complete _, a⟩ },
-    apply ge_of_eq cards, rw mem_sdiff, exact ⟨complete _, ‹_›⟩, 
+      -- Assume first B < A - min A, and take k as the colex witness for this
+      have r: j ≤ k := min'_le _ _ _ _, 
+      have: j ∉ B, have: j ∈ univ \ B := min'_mem _ _, rw mem_sdiff at this, exact this.2,
+      have cards: card A = card (insert j B),
+      { rw [card_insert_of_not_mem ‹j ∉ B›, ← ‹_ = card B›, card_erase_of_mem (min'_mem _ _), nat.pred_eq_sub_one, nat.sub_add_cancel], 
+      apply nat.pos_of_ne_zero, rw ne, rw card_eq_zero, exact hA },
+      refine ⟨j, ‹_›, cards, _⟩, 
+      rcases lt_or_eq_of_le r with r | r₁, -- cases on j < k or j = k
+        -- if j < k, k is our colex witness for B ∪ j < A
+        left, refine ⟨k, _, mt (λ t, mem_of_mem_insert_of_ne t (ne_of_gt r)) ‹k ∉ B›, mem_of_mem_erase ‹_›⟩, intros x hx, 
+        rw mem_insert, rw z hx, simp [ne_of_gt (trans hx r), ne_of_gt (lt_of_le_of_lt (min'_le _ _ _ (mem_of_mem_erase ‹_›)) hx)], 
+      -- if j = k, all of range k is in B so by sizes B ∪ j = A
+      right, symmetry, apply eq_of_subset_of_card_le, intros t th, rcases lt_trichotomy k t with lt|eq|gt,
+      { apply mem_insert_of_mem, rw z lt, apply mem_erase_of_ne_of_mem _ th, apply ne_of_gt (lt_of_le_of_lt _ lt), apply min'_le _ _ _ (mem_of_mem_erase ‹_›) },
+      { rw [← eq, r₁], apply mem_insert_self },
+      { apply mem_insert_of_mem, rw ← r₁ at gt, by_contra, apply not_lt_of_le (min'_le (univ \ B) _ t _) gt, rw mem_sdiff, exact ⟨complete _, a⟩ },
+      apply ge_of_eq cards, rw mem_sdiff, exact ⟨complete _, ‹_›⟩, 
+    -- If B = A - min A, then use j = min A so B ∪ j = A
     refine ⟨min' A hA, not_mem_erase _ _, _⟩, 
     rw insert_erase (min'_mem _ _), exact ⟨rfl, refl _⟩
   end
 
+  -- ...which we use to prove that the shadow of an initial segment is also an initial segment.
   lemma shadow_of_IS [decidable_linear_order α] [fintype α] {𝒜 : finset (finset α)} (r : ℕ) (h₁ : is_init_seg_of_colex 𝒜 r) : is_init_seg_of_colex (∂𝒜) (r - 1) :=
   begin
     rcases nat.eq_zero_or_pos r with rfl | hr,
@@ -335,7 +362,9 @@ end
 end UV
 
 local notation `X` := fin n
+-- Finally we can prove KK.
 section KK
+  -- Most of the work was done in KK helper; it gives a ℬ which is fully compressed, and so we know it's an initial segment.
   theorem kruskal_katona (r : ℕ) (𝒜 𝒞 : finset (finset X)) : 
     all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒜.card = 𝒞.card ∧ UV.is_init_seg_of_colex 𝒞 r 
   → (∂𝒞).card ≤ (∂𝒜).card :=
@@ -351,6 +380,8 @@ section KK
     apply eq_of_subset_of_card_le CB (le_of_eq z)
   end
 
+  -- We can strengthen KK slightly: note the middle and has been relaxed to a ≤.
+  -- This shows that the minimum possible shadow size is attained by initial segments.
   theorem strengthened (r : ℕ) (𝒜 𝒞 : finset (finset X)) : 
     all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒞.card ≤ 𝒜.card ∧ UV.is_init_seg_of_colex 𝒞 r 
   → (∂𝒞).card ≤ (∂𝒜).card :=
@@ -361,6 +392,8 @@ section KK
     transitivity, exact this, apply card_le_of_subset, rw [shadow, shadow], apply shadow_monotone prop
   end
 
+  -- We can also iterate the strengthened form, since the shadow of an inital segment is initial.
+  -- In particular, the minimum possible iterated shadow size is attained by initial segments.
   theorem iterated (r k : ℕ) (𝒜 𝒞 : finset (finset X)) : 
     all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒞.card ≤ 𝒜.card ∧ UV.is_init_seg_of_colex 𝒞 r 
   → (shadow^[k] 𝒞).card ≤ (shadow^[k] 𝒜).card :=
@@ -372,6 +405,11 @@ section KK
     apply UV.shadow_of_IS _ z₄
   end
 
+  -- A special case of KK which is sometimes easier to work with. 
+  -- If |𝒜| ≥ k choose r, (and everything in 𝒜 has size r) then the initial segment we compare to
+  -- is just all the subsets of {0,...,k-1} of size r. The ith iterated shadow of this is
+  -- all the subsets of {0,...,k-1} of size r-i, so the ith iterated shadow of 𝒜 has at least k choose (r-i) 
+  -- elements
   theorem lovasz_form {r k i : ℕ} {𝒜 : finset (finset X)} (hir : i ≤ r) (hrk : r ≤ k) (hkn : k ≤ n) (h₁ : all_sized 𝒜 r) (h₂ : nat.choose k r ≤ 𝒜.card) : 
     nat.choose k (r-i) ≤ (shadow^[i] 𝒜).card :=
   begin
@@ -408,8 +446,10 @@ section KK
   end
 end KK
 
+-- An application of KK: intersecting families. A set family is intersecting if every pair of sets has something in common.
 def intersecting (𝒜 : finset (finset X)) : Prop := ∀ A ∈ 𝒜, ∀ B ∈ 𝒜, ¬ disjoint A B
 
+-- The maximum size of an intersecting family is 2^(n-1). This is attained by taking, for instance, everything with a 0 in it.
 theorem intersecting_all {𝒜 : finset (finset X)} (h : intersecting 𝒜) : 𝒜.card ≤ 2^(n-1) :=
 begin
   cases nat.eq_zero_or_pos n with b hn,
@@ -440,33 +480,44 @@ end
 def extremal_intersecting (hn : 1 ≤ n) : finset (finset X) :=
 (powerset univ).filter (λ A, (⟨0, hn⟩: X) ∈ A)
 
-theorem EKR {𝒜 : finset (finset X)} {r : ℕ} (h₁ : intersecting 𝒜) (h₂ : all_sized 𝒜 r) (h₃ : r < n/2) : 𝒜.card ≤ nat.choose (n-1) (r-1) :=
+-- This suggests the question: What's the maximum size of an intersecting family, if all sets have size r?
+-- For r > n/2, we can just take all sets of size r - by pigeonhole this is intersecting, so the maximum is n choose r.
+-- For r ≤ n/2, we can get a tighter bound: (n-1) choose (r-1), using the Lovasz form of KK.
+-- (Other proofs are possible.)
+theorem EKR {𝒜 : finset (finset X)} {r : ℕ} (h₁ : intersecting 𝒜) (h₂ : all_sized 𝒜 r) (h₃ : r ≤ n/2) : 𝒜.card ≤ nat.choose (n-1) (r-1) :=
 begin
+  -- Take care of the r=0 case first: it's not very interesting.
   cases nat.eq_zero_or_pos r with b h1r,
     convert nat.zero_le _,
     rw [card_eq_zero, eq_empty_iff_forall_not_mem],
     intros A HA, apply h₁ A HA A HA, rw disjoint_self_iff_empty, 
     rw ← card_eq_zero, rw ← b, apply h₂ _ HA,
-  by_contra size, replace size := lt_of_not_ge size,
+  apply le_of_not_lt, intro size,
+  -- Consider 𝒜bar = {A^c | A ∈ 𝒜}
   set 𝒜bar := 𝒜.image (λ A, univ \ A),
+  -- Then its iterated shadow (∂^[n-2k] 𝒜bar) is disjoint from 𝒜 by intersecting-ness
   have: disjoint 𝒜 (shadow^[n-2*r] 𝒜bar),
     rw disjoint_right, intros A hAbar hA, 
     simp [sub_iff_shadow_iter, mem_image] at hAbar,
     rcases hAbar with ⟨_, ⟨C, hC, rfl⟩, AsubnotC, _⟩, 
     apply h₁ A hA C hC (disjoint_of_subset_left AsubnotC sdiff_disjoint),
-  have: r ≤ n := trans (le_of_lt h₃) (nat.div_le_self n 2), 
+  have: r ≤ n := trans h₃ (nat.div_le_self n 2), 
   have: 1 ≤ n := trans ‹1 ≤ r› ‹r ≤ n›,
+  -- We know the size of 𝒜bar since it's the same size as 𝒜
   have z: 𝒜bar.card > nat.choose (n-1) (n-r),
     convert size using 1, rw card_image_of_inj_on, intros A _ B _ k, replace k := sdiff_partially_injective k,
       simp [ext] at k, rwa ext,
     apply choose_symm', rw [← nat.add_sub_assoc ‹r ≥ 1›, nat.sub_add_cancel ‹r ≤ n›],
+  -- and everything in 𝒜bar has size n-r.
   have: all_sized 𝒜bar (n - r),
     intro A, rw mem_image, rintro ⟨B, Bz, rfl⟩, rw card_univ_diff, rw card_fin, rw h₂ _ Bz, 
   have: n - 2 * r ≤ n - r, rw nat.sub_le_sub_left_iff ‹r ≤ n›, apply nat.le_mul_of_pos_left zero_lt_two,
+  -- So, we can use the Lovasz form of KK to get |∂^[n-2k] 𝒜bar| ≥ (n-1) choose r
   have kk := lovasz_form ‹n - 2 * r ≤ n - r› (by rwa nat.sub_le_sub_left_iff (trans h1r ‹r ≤ n›)) (nat.sub_le_self _ _) ‹all_sized 𝒜bar (n - r)› (le_of_lt z), 
   have q: n - r - (n - 2 * r) = r, rw [nat.sub.right_comm, nat.sub_sub_self, two_mul], apply nat.add_sub_cancel,
-    rw [mul_comm, ← nat.le_div_iff_mul_le' zero_lt_two], apply le_of_lt ‹_›, 
+    rw [mul_comm, ← nat.le_div_iff_mul_le' zero_lt_two], apply h₃, 
   rw q at kk, 
+  -- But this gives a contradiction: |𝒜| + |∂^[n-2k] 𝒜bar| > n choose r
   have: nat.choose n r < card (𝒜 ∪ (shadow^[n - 2 * r] 𝒜bar)),
     rw card_disjoint_union ‹_›, 
     convert lt_of_le_of_lt (nat.add_le_add_left kk _) (nat.add_lt_add_right size _),
@@ -474,8 +525,6 @@ begin
   apply not_le_of_lt this,
   convert number_of_fixed_size _, rw card_fin,
   rw ← union_layer, refine ⟨‹_›, _⟩,
-  intros B hB, rw sub_iff_shadow_iter at hB, 
-  rcases hB with ⟨A, hA, _, cards⟩, rw [card_sdiff ‹B ⊆ A›, ‹all_sized 𝒜bar (n - r)› _ ‹A ∈ _›] at cards, 
-  rw [← q, ← cards, nat.sub_sub_self], 
-  rw ← ‹all_sized 𝒜bar (n - r)› _ ‹A ∈ _›, apply card_le_of_subset ‹B ⊆ A›
+  convert iter_shadow_sized ‹all_sized 𝒜bar (n - r)›, 
+  rw q
 end

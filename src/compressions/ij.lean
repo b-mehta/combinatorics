@@ -1,3 +1,7 @@
+/-
+ij compressions
+-/
+
 import data.finset
 import shadows
 
