@@ -4,6 +4,7 @@ The colex ordering for finite sets
 
 import data.finset
 import data.fintype
+import algebra.geom_sum
 
 variable {α : Type*}
 
@@ -102,3 +103,47 @@ begin
   rw colex_lt at h₁, rcases h₁ with ⟨k, z, _, _⟩,
   intros x hx, apply lt_of_not_ge, intro, apply not_lt_of_ge a, apply h₂, rwa ← z, apply lt_of_lt_of_le (h₂ k ‹_›) a, 
 end
+
+lemma binary_sum_nat {k : ℕ} {A : finset ℕ} (h₁ : ∀ {x}, x ∈ A → x < k) : A.sum (pow 2) < 2^k :=
+begin
+  apply lt_of_le_of_lt (sum_le_sum_of_subset (λ t, mem_range.2 ∘ h₁)),
+  have z := geom_sum_mul_add 1 k, rw [geom_series, mul_one] at z, 
+  simp only [nat.pow_eq_pow] at z, rw ← z, apply nat.lt_succ_self
+end
+
+-- We have an equivalent relation to the colex order, for subsets of ℕ.
+-- Note this gives a proof that <ᶜ is decidable for α = ℕ, which we didn't have before.
+lemma binary_iff (A B : finset ℕ) : A.sum (pow 2) < B.sum (pow 2) ↔ A <ᶜ B :=
+begin
+  have z: ∀ (A B : finset ℕ), A <ᶜ B → A.sum (pow 2) < B.sum (pow 2),
+    rintro A B ⟨k, maxi, notinA, inB⟩,
+    have AeqB: A.filter (λ x, ¬(x ≤ k)) = B.filter (λ x, ¬(x ≤ k)),
+    { ext t, by_cases h: (k < t); simp [h], apply maxi h },
+    have Alt: (A.filter (λ x, x ≤ k)).sum (pow 2) < pow 2 k :=
+      binary_sum_nat (λ _, (λ th, lt_of_le_of_ne (and.right th) (ne_of_mem_of_not_mem th.left notinA)) ∘ mem_filter.1), 
+    have leB: pow 2 k ≤ (B.filter (λ x, x ≤ k)).sum (pow 2),
+    { apply single_le_sum (λ _ _, nat.zero_le _) (mem_filter.2 ⟨inB, _⟩), refl },
+    have := add_lt_add_right (lt_of_lt_of_le Alt leB) ((filter (λ x, ¬(x ≤ k)) A).sum (pow 2)),
+    rwa [← sum_union, filter_union_filter_neg_eq, AeqB, ← sum_union, filter_union_filter_neg_eq] at this, 
+    any_goals { rw disjoint_iff_inter_eq_empty, apply filter_inter_filter_neg_eq },
+  refine ⟨λ h, (trichotomous A B).resolve_right (λ h₁, h₁.elim _ (λ q, not_lt_of_gt h (z _ _ q))), z A B⟩, 
+  rintro rfl, apply irrefl _ h
+end
+
+-- lemma union_empty_iff (A B : finset α) [decidable_eq α]: A ∪ B = ∅ ↔ A = ∅ ∧ B = ∅ := lattice.sup_eq_bot_iff
+
+-- lemma sym_diff_empty_iff_eq [decidable_eq α] (A B : finset α) : A \ B ∪ B \ A = ∅ ↔ A = B :=
+-- begin
+--   rw union_empty_iff, rw sdiff_eq_empty_iff_subset, rw sdiff_eq_empty_iff_subset, rw subset.antisymm_iff
+-- end
+
+-- example [decidable_linear_order α] (A B : finset α) : A ≤ᶜ B ↔ dite (A = B) (λ _, true) (λ t, max' (A \ B ∪ B \ A) (mt (sym_diff_empty_iff_eq _ _).1 t) ∈ B) :=
+-- begin
+--   split_ifs, rw iff_true, right, assumption,
+--   split; intro p, obtain ⟨k, z, h₁, h₂⟩ := p.resolve_right h, convert h₂, apply le_antisymm, 
+--   apply max'_le, intros t th, apply le_of_not_lt, intro a, specialize z a, simp at th z, tauto,
+--   apply le_max', simp [h₁, h₂], 
+--   left, refine ⟨_, _, _, p⟩, intros t th, by_contra, rw [not_iff, iff_iff_and_or_not_and_not, not_not] at a, apply not_le_of_lt th, 
+--   apply le_max', simp, rwa [or_comm, and_comm], 
+--   intro, have := max'_mem (A \ B ∪ B \ A) _, simp [p, a] at this, assumption, exact mt (sym_diff_empty_iff_eq _ _).1 h,
+-- end

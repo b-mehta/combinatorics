@@ -2,7 +2,6 @@
 The Kruskal-Katona theorem in a few different versions, and an application to the Erdos-Ko-Rado theorem.
 -/
 
-import algebra.geom_sum
 import data.finset
 import data.fintype
 import tactic
@@ -18,6 +17,22 @@ open nat
 
 variable {α : Type*}
 variables {n : ℕ}
+
+-- is_init_seg_of_colex 𝒜 r means that everything in 𝒜 has size r, and that if B is below A in colex where B has size r and A is in 𝒜,
+-- then B is also in 𝒜
+def is_init_seg_of_colex [has_lt α] (𝒜 : finset (finset α)) (r : ℕ) : Prop := all_sized 𝒜 r ∧ (∀ A ∈ 𝒜, ∀ B, B <ᶜ A ∧ B.card = r → B ∈ 𝒜)
+
+-- Initial segments are nested in some way, so if they're the same size, they're unique.
+lemma init_seg_total [decidable_linear_order α] (𝒜₁ 𝒜₂ : finset (finset α)) (r : ℕ) (h₁ : is_init_seg_of_colex 𝒜₁ r) (h₂ : is_init_seg_of_colex 𝒜₂ r) : 𝒜₁ ⊆ 𝒜₂ ∨ 𝒜₂ ⊆ 𝒜₁ :=
+begin
+  rw ← sdiff_eq_empty_iff_subset, rw ← sdiff_eq_empty_iff_subset,
+  by_contra a, rw not_or_distrib at a, simp [exists_mem_iff_ne_empty.symm, exists_mem_iff_ne_empty.symm] at a,
+  rcases a with ⟨⟨A, Ah₁, Ah₂⟩, ⟨B, Bh₁, Bh₂⟩⟩,
+  rcases trichotomous_of (<ᶜ) A B with lt | eq | gt,
+    { exact Ah₂ (h₂.2 B Bh₁ A ⟨lt, h₁.1 A Ah₁⟩) },
+    { rw eq at Ah₁, exact Bh₂ Ah₁ },
+    { exact Bh₂ (h₁.2 A Ah₁ B ⟨gt, h₂.1 B Bh₁⟩) },
+end
 
 namespace UV
 section 
@@ -35,31 +50,6 @@ section
     simp [xU, xV]
   end
 
-  lemma binary_sum_nat {k : ℕ} {A : finset ℕ} (h₁ : ∀ {x}, x ∈ A → x < k) : A.sum (pow 2) < 2^k :=
-  begin
-    apply lt_of_le_of_lt (sum_le_sum_of_subset (λ t, mem_range.2 ∘ h₁)),
-    have z := geom_sum_mul_add 1 k, rw [geom_series, mul_one] at z, 
-    simp only [nat.pow_eq_pow] at z, rw ← z, apply nat.lt_succ_self
-  end
-
-  -- We have an equivalent relation to the colex order, for subsets of ℕ.
-  -- Note this gives a proof that <ᶜ is decidable for α = ℕ, which we didn't have before.
-  lemma binary_iff (A B : finset ℕ) : A.sum (pow 2) < B.sum (pow 2) ↔ A <ᶜ B :=
-  begin
-    have z: ∀ (A B : finset ℕ), A <ᶜ B → A.sum (pow 2) < B.sum (pow 2),
-      rintro A B ⟨k, maxi, notinA, inB⟩,
-      have AeqB: A.filter (λ x, ¬(x ≤ k)) = B.filter (λ x, ¬(x ≤ k)),
-      { ext t, by_cases h: (k < t); simp [h], apply maxi h },
-      have Alt: (A.filter (λ x, x ≤ k)).sum (pow 2) < pow 2 k :=
-        binary_sum_nat (λ _, (λ th, lt_of_le_of_ne (and.right th) (ne_of_mem_of_not_mem th.left notinA)) ∘ mem_filter.1), 
-      have leB: pow 2 k ≤ (B.filter (λ x, x ≤ k)).sum (pow 2),
-      { apply single_le_sum (λ _ _, nat.zero_le _) (mem_filter.2 ⟨inB, _⟩), refl },
-      have := add_lt_add_right (lt_of_lt_of_le Alt leB) ((filter (λ x, ¬(x ≤ k)) A).sum (pow 2)),
-      rwa [← sum_union, filter_union_filter_neg_eq, AeqB, ← sum_union, filter_union_filter_neg_eq] at this, 
-      any_goals { rw disjoint_iff_inter_eq_empty, apply filter_inter_filter_neg_eq },
-    refine ⟨λ h, (trichotomous A B).resolve_right (λ h₁, h₁.elim _ (λ q, not_lt_of_gt h (z _ _ q))), z A B⟩, 
-    rintro rfl, apply irrefl _ h
-  end
   -- This measures roughly how much we've compressed the family 
   def family_measure_fin (𝒜 : finset (finset (fin n))) : ℕ := 𝒜.sum (λ A, (A.image fin.val).sum (pow 2))
 
@@ -159,21 +149,6 @@ section
     exact ⟨B, trans q1 p1, trans p2.symm q2, q3, q4⟩
   end
 
-  -- is_init_seg_of_colex 𝒜 r means that everything in 𝒜 has size r, and that if B is below A in colex where B has size r and A is in 𝒜,
-  -- then B is also in 𝒜
-  def is_init_seg_of_colex [has_lt α] (𝒜 : finset (finset α)) (r : ℕ) : Prop := all_sized 𝒜 r ∧ (∀ A ∈ 𝒜, ∀ B, B <ᶜ A ∧ B.card = r → B ∈ 𝒜)
-
-  -- Initial segments are nested in some way
-  lemma init_seg_total [decidable_linear_order α] (𝒜₁ 𝒜₂ : finset (finset α)) (r : ℕ) (h₁ : is_init_seg_of_colex 𝒜₁ r) (h₂ : is_init_seg_of_colex 𝒜₂ r) : 𝒜₁ ⊆ 𝒜₂ ∨ 𝒜₂ ⊆ 𝒜₁ :=
-  begin
-    rw ← sdiff_eq_empty_iff_subset, rw ← sdiff_eq_empty_iff_subset,
-    by_contra a, rw not_or_distrib at a, simp [exists_mem_iff_ne_empty.symm, exists_mem_iff_ne_empty.symm] at a,
-    rcases a with ⟨⟨A, Ah₁, Ah₂⟩, ⟨B, Bh₁, Bh₂⟩⟩,
-    rcases trichotomous_of (<ᶜ) A B with lt | eq | gt,
-      { exact Ah₂ (h₂.2 B Bh₁ A ⟨lt, h₁.1 A Ah₁⟩) },
-      { rw eq at Ah₁, exact Bh₂ Ah₁ },
-      { exact Bh₂ (h₁.2 A Ah₁ B ⟨gt, h₂.1 B Bh₁⟩) },
-  end
 
   -- If we're compressed by all useful compressions, we're an initial segment
   lemma init_seg_of_compressed [decidable_linear_order α] (ℬ : finset (finset α)) (r : ℕ) (h₁ : all_sized ℬ r) (h₂ : ∀ U V, useful_compression U V → is_compressed U V ℬ): 
@@ -365,44 +340,49 @@ local notation `X` := fin n
 -- Finally we can prove KK.
 section KK
   -- Most of the work was done in KK helper; it gives a ℬ which is fully compressed, and so we know it's an initial segment.
-  theorem kruskal_katona (r : ℕ) (𝒜 𝒞 : finset (finset X)) : 
-    all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒜.card = 𝒞.card ∧ UV.is_init_seg_of_colex 𝒞 r 
-  → (∂𝒞).card ≤ (∂𝒜).card :=
+  theorem kruskal_katona {r : ℕ} {𝒜 𝒞 : finset (finset X)}
+    (h₁ : all_sized 𝒜 r) (h₂ : 𝒜.card = 𝒞.card) (h₃ : is_init_seg_of_colex 𝒞 r) :
+    (∂𝒞).card ≤ (∂𝒜).card :=
   begin
-    rintros ⟨layerA, layerC, h₃, h₄⟩,
-    rcases UV.kruskal_katona_helper r 𝒜 layerA with ⟨ℬ, _, t, layerB, fully_comp⟩,
-    have: UV.is_init_seg_of_colex ℬ r := UV.init_seg_of_compressed ℬ r layerB fully_comp,
+    rcases UV.kruskal_katona_helper r 𝒜 h₁ with ⟨ℬ, _, t, layerB, fully_comp⟩,
+    have: is_init_seg_of_colex ℬ r := UV.init_seg_of_compressed ℬ r layerB fully_comp,
     suffices: 𝒞 = ℬ,
       rwa this at *,
-    have z: card ℬ = card 𝒞 := t.symm.trans h₃,
-    cases UV.init_seg_total ℬ 𝒞 r this h₄ with BC CB,
+    have z: card ℬ = card 𝒞 := t.symm.trans h₂,
+    cases init_seg_total ℬ 𝒞 r this h₃ with BC CB,
       symmetry, apply eq_of_subset_of_card_le BC (ge_of_eq z),
     apply eq_of_subset_of_card_le CB (le_of_eq z)
   end
 
   -- We can strengthen KK slightly: note the middle and has been relaxed to a ≤.
   -- This shows that the minimum possible shadow size is attained by initial segments.
-  theorem strengthened (r : ℕ) (𝒜 𝒞 : finset (finset X)) : 
-    all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒞.card ≤ 𝒜.card ∧ UV.is_init_seg_of_colex 𝒞 r 
-  → (∂𝒞).card ≤ (∂𝒜).card :=
+  theorem strengthened {r : ℕ} {𝒜 𝒞 : finset (finset X)}
+    (h₁ : all_sized 𝒜 r) (h₂ : 𝒞.card ≤ 𝒜.card) (h₃ : is_init_seg_of_colex 𝒞 r) : 
+    (∂𝒞).card ≤ (∂𝒜).card :=
   begin
-    rintros ⟨Ar, Cr, cards, colex⟩,
-    rcases exists_smaller_set 𝒜 𝒞.card cards with ⟨𝒜', prop, size⟩,
-    have := kruskal_katona r 𝒜' 𝒞 ⟨λ A hA, Ar _ (prop hA), Cr, size, colex⟩,
+    rcases exists_smaller_set 𝒜 𝒞.card h₂ with ⟨𝒜', prop, size⟩,
+    have := kruskal_katona (λ A hA, h₁ _ (prop hA)) size h₃,
     transitivity, exact this, apply card_le_of_subset, rw [shadow, shadow], apply shadow_monotone prop
   end
 
   -- We can also iterate the strengthened form, since the shadow of an inital segment is initial.
   -- In particular, the minimum possible iterated shadow size is attained by initial segments.
-  theorem iterated (r k : ℕ) (𝒜 𝒞 : finset (finset X)) : 
-    all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒞.card ≤ 𝒜.card ∧ UV.is_init_seg_of_colex 𝒞 r 
-  → (shadow^[k] 𝒞).card ≤ (shadow^[k] 𝒜).card :=
+  -- theorem iterated (r k : ℕ) (𝒜 𝒞 : finset (finset X)) : 
+  --   all_sized 𝒜 r ∧ all_sized 𝒞 r ∧ 𝒞.card ≤ 𝒜.card ∧ UV.is_init_seg_of_colex 𝒞 r 
+  -- → (shadow^[k] 𝒞).card ≤ (shadow^[k] 𝒜).card :=
+  -- begin
+  --   revert r 𝒜 𝒞, induction k,
+  --     intros, simp, exact a.2.2.1,
+  --   rintros r A C ⟨z₁, z₂, z₃, z₄⟩, simp, apply k_ih (r-1), refine ⟨shadow_layer z₁, shadow_layer z₂, _, _⟩,
+  --   apply strengthened z₁ z₃ z₄, 
+  --   apply UV.shadow_of_IS _ z₄
+  -- end
+  theorem iterated {r k : ℕ} {𝒜 𝒞 : finset (finset X)}
+    (h₁ : all_sized 𝒜 r) (h₂ : 𝒞.card ≤ 𝒜.card) (h₃ : is_init_seg_of_colex 𝒞 r) : 
+    (shadow^[k] 𝒞).card ≤ (shadow^[k] 𝒜).card :=
   begin
-    revert r 𝒜 𝒞, induction k,
-      intros, simp, exact a.2.2.1,
-    rintros r A C ⟨z₁, z₂, z₃, z₄⟩, simp, apply k_ih (r-1), refine ⟨shadow_layer z₁, shadow_layer z₂, _, _⟩,
-    apply strengthened r _ _ ⟨z₁, z₂, z₃, z₄⟩, 
-    apply UV.shadow_of_IS _ z₄
+    induction k generalizing r 𝒜 𝒞, simpa,
+    apply k_ih (shadow_layer h₁) (strengthened h₁ h₂ h₃) (UV.shadow_of_IS _ h₃), 
   end
 
   -- A special case of KK which is sometimes easier to work with. 
@@ -410,8 +390,8 @@ section KK
   -- is just all the subsets of {0,...,k-1} of size r. The ith iterated shadow of this is
   -- all the subsets of {0,...,k-1} of size r-i, so the ith iterated shadow of 𝒜 has at least k choose (r-i) 
   -- elements
-  theorem lovasz_form {r k i : ℕ} {𝒜 : finset (finset X)} (hir : i ≤ r) (hrk : r ≤ k) (hkn : k ≤ n) (h₁ : all_sized 𝒜 r) (h₂ : nat.choose k r ≤ 𝒜.card) : 
-    nat.choose k (r-i) ≤ (shadow^[i] 𝒜).card :=
+  theorem lovasz_form {r k i : ℕ} {𝒜 : finset (finset X)} (hir : i ≤ r) (hrk : r ≤ k) (hkn : k ≤ n) (h₁ : all_sized 𝒜 r) (h₂ : choose k r ≤ 𝒜.card) : 
+    choose k (r-i) ≤ (shadow^[i] 𝒜).card :=
   begin
     set range'k : finset X := attach_fin (range k) (λ m, by rw mem_range; apply forall_lt_iff_le.2 hkn),
     set 𝒞 : finset (finset X) := powerset_len r (range'k),
@@ -419,7 +399,7 @@ section KK
       rw [card_powerset_len, card_attach_fin, card_range], 
     have: all_sized 𝒞 r, intros A HA, rw mem_powerset_len at HA, exact HA.2,
     suffices this: (shadow^[i] 𝒞).card = nat.choose k (r-i),
-    { rw ← this, apply iterated r _ _ _ ⟨h₁, ‹all_sized 𝒞 r›, _, _⟩, 
+    { rw ← this, apply iterated h₁ _ _, 
       rwa Ccard, 
       refine ⟨‹_›, _⟩, rintros A HA B ⟨HB₁, HB₂⟩, 
       rw mem_powerset_len, refine ⟨_, ‹_›⟩, 
@@ -484,7 +464,9 @@ def extremal_intersecting (hn : 1 ≤ n) : finset (finset X) :=
 -- For r > n/2, we can just take all sets of size r - by pigeonhole this is intersecting, so the maximum is n choose r.
 -- For r ≤ n/2, we can get a tighter bound: (n-1) choose (r-1), using the Lovasz form of KK.
 -- (Other proofs are possible.)
-theorem EKR {𝒜 : finset (finset X)} {r : ℕ} (h₁ : intersecting 𝒜) (h₂ : all_sized 𝒜 r) (h₃ : r ≤ n/2) : 𝒜.card ≤ nat.choose (n-1) (r-1) :=
+theorem EKR {𝒜 : finset (finset X)} {r : ℕ} 
+  (h₁ : intersecting 𝒜) (h₂ : all_sized 𝒜 r) (h₃ : r ≤ n/2) :
+𝒜.card ≤ choose (n-1) (r-1) :=
 begin
   -- Take care of the r=0 case first: it's not very interesting.
   cases nat.eq_zero_or_pos r with b h1r,
