@@ -47,13 +47,13 @@ In brief, the Kruskal-Katona theorem tells us the minimum possible size of the s
 Picking apart what this means, a set family is just a collection (set) of subsets of a fixed finite 'universe' of elements - typically write `[n] := {0,...,n-1}`. 
 Kruskal-Katona is concerned particular with set families in which every element has the same size, for instance 
 ```
-A = {{0,1,2}, {0,1,3}, {0,2,3}, {0,2,4}}.
+A = { {0,1,2}, {0,1,3}, {0,2,3}, {0,2,4} }.
 ```
 Each set in here would be called a 3-set, since each set has three elements.
 
 The shadow of such a set family is everything we can get by removing an element from each set, and it's written `∂`. In our example,
 ```
-∂A = {{0,1}, {0,2}, {0,3}, {0,4}, {1,2}, {1,3}, {2,3}, {2,4}}.
+∂A = { {0,1}, {0,2}, {0,3}, {0,4}, {1,2}, {1,3}, {2,3}, {2,4} }.
 ```
 A question we could ask about shadows is
 
@@ -91,7 +91,7 @@ A fair few lemmas came up along the way, and some of them seemed like they ought
 We first set up some basic definitions and lemmas for general combinatorics in `basic.lean` such as the definition of an antichain.
 An antichain is a set family in which no set is contained in another, for instance
 ```
-{{0}, {4,6,7}, {2,4,5,6}}
+{ {0}, {4,6,7}, {2,4,5,6} }
 ```
 ### <a name='shadows.lean'></a>shadows.lean
 In `shadows.lean`, we define the basic notion of a shadow. An important theorem relating to shadows is the local LYM theorem, which is then used to prove the LYM (Lubell-Yamamoto-Meshalkin) inequality:
