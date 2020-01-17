@@ -1,3 +1,5 @@
+# Combinatorics in lean
+
 <!-- vscode-markdown-toc -->
 * [What is this?](#Whatisthis)
 * [How can I install this package?](#HowcanIinstallthispackage)
@@ -20,8 +22,6 @@
 	autoSave=true
 	/vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
-
-# Combinatorics in lean
 
 ## <a name='Whatisthis'></a>What is this?
 
