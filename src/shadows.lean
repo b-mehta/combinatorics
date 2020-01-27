@@ -16,7 +16,6 @@ This file defines shadows of a set family and proves the local LYM and LYM
 theorems, as well as Sperner's theorem.
 
 ## Main definitions
-
 The `shadow` of a set family is everything we can get by removing an element
 from each set.
 
@@ -24,25 +23,21 @@ The rth slice of a set family 𝒜 is given by `slice 𝒜 r`, and is the subset
 its elements which have cardinality r.
 
 ## Main statements
-
 * local_lym
 * lubell_yamamoto_meshalkin
 * sperner
 
 ## Notation
-
 We introduce the notation ∂ to denote the shadow.
 We also maintain the convention that A, B, ... denote sets (usually finset α),
 𝒜, ℬ, ... denote set families, i.e. `finset (finset α)` and lower-case letters
 denote elements of the ground set α.
 
 ## References
-
 * http://b-mehta.github.io/maths-notes/iii/mich/combinatorics.pdf
 * http://discretemath.imp.fu-berlin.de/DMII-2015-16/kruskal.pdf
 
 ## Tags
-
 shadow, lym, slice, sperner, antichain
 -/
 
@@ -518,12 +513,11 @@ In other words,
 ∑_i |A#i|/(n choose (n/2)) ≤ 1, so 
 ∑_i |A#i| ≤ (n choose (n/2)), as required.
 -/
-theorem sperner [fintype α] [decidable_eq α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 𝒜.card ≤ nat.choose n (n / 2) := 
+theorem sperner [fintype α] [decidable_eq α] {𝒜 : finset (finset α)} (H : antichain 𝒜) : 
+  𝒜.card ≤ nat.choose n (n / 2) := 
 begin
   have: sum (range (n + 1)) (λ (r : ℕ), ((𝒜#r).card : ℚ) / nat.choose n (n/2)) ≤ 1,
-    transitivity,
-      swap,
-      exact lubell_yamamoto_meshalkin H,
+    transitivity, swap, exact lubell_yamamoto_meshalkin H,
     apply sum_le_sum, intros r hr,
     apply div_le_div_of_le_left; norm_cast,
     { apply nat.zero_le },
@@ -531,17 +525,12 @@ begin
     { apply dominate_choose },
   rw [← sum_div, ← sum_nat_cast, div_le_one_iff_le] at this,
     swap, norm_cast, apply choose_pos, apply nat.div_le_self, 
-  norm_cast at this,
-  rw ← card_bind at this,
+  norm_cast at this, rw ← card_bind at this,
     convert this,
     simp only [ext, mem_slice, mem_bind, exists_prop, mem_range, lt_succ_iff],
     intro a, split,
       intro ha, refine ⟨a.card, card_le_of_subset (subset_univ _), ha, rfl⟩,
     rintro ⟨_, _, q, _⟩, exact q,
-  intros x _ y _ ne,
-  rw disjoint_left,
-  intros a Ha k,
+  intros x _ y _ ne, rw disjoint_left, intros a Ha k,
   exact ne_of_diff_slice Ha k ne rfl
 end
-
-#lint doc_blame_thm

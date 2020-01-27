@@ -39,6 +39,9 @@ multiple orderings are available in context.
 
 ## Tags
 colex, colexicographic, binary
+
+## References
+* http://b-mehta.github.io/maths-notes/iii/mich/combinatorics.pdf
 -/
 
 variable {α : Type*}
@@ -185,7 +188,7 @@ end
 If A is before B in colex, and everything in B is small, then everything in 
 A is small. 
 -/
-lemma max_colex [decidable_linear_order α] {A B : finset α} {t : α} 
+lemma max_colex [decidable_linear_order α] {A B : finset α} (t : α)
   (h₁ : A <ᶜ B) (h₂ : ∀ x ∈ B, x < t) : 
   ∀ x ∈ A, x < t := 
 begin
@@ -230,5 +233,3 @@ begin
                (λ h₁, h₁.elim _ (not_lt_of_gt h ∘ z _ _)), z A B⟩, 
   rintro rfl, apply irrefl _ h
 end
-
-#lint doc_blame_thm
