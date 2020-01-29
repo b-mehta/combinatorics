@@ -69,7 +69,7 @@ Kruskal-Katona says that this is the minimum, in particular if `|A| = C(k, r)`, 
 ### <a name='Whatformdoyouproveitin'></a>What form do you prove it in?
 To write the Kruskal-Katona theorem in more general form in which it's formalised here, let's first define an ordering on `r`-sets called the colexicographic ordering, or colex for short. The colex ordering effectively tries to avoid large numbers. For `r = 2`, it starts like this:
 ```
-{0,1}, {0,2}, {1,2}, {0,3}, {1,3}, {2,3}, {1,4}, {2,4}, {3,4}, ...
+{0,1}, {0,2}, {1,2}, {0,3}, {1,3}, {2,3}, {0,4}, {1,4}, {2,4}, {3,4}, ...
 ```
 Notice how it reached `{2,3}` before `{1,4}`, because it tried to avoid getting `4`.
 Also, observe that the first three sets above gives all `2`-sets from `[3]`, the first six sets give all `2`-sets from `[4]`, and so on, which were our guess for the minimum shadow families.
