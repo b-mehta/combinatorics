@@ -32,11 +32,13 @@ section ramsey
   lemma colour_neighbour_sub (M : set ℕ) (i : ℕ) (c : finset ℕ → ℕ) (col : ℕ) : colour_neighbour_in M i c col ⊆ M :=
   sep_subset _ _
 
-  lemma all_colours_is_all {V K : set ℕ} (hk : set.finite K) {c : finset ℕ → ℕ} (h : ∀ (e : finset ℕ), e.card = 2 → c e ∈ K) {v : ℕ} (hv : v ∈ V) :
+  lemma all_colours_is_all' {V K : set ℕ} (hk : set.finite K) {c : finset ℕ → ℕ} 
+    (h : ∀ (e : finset ℕ), e.card = 2 ∧ (∀ x ∈ e, x ∈ V) → c e ∈ K) {v : ℕ} (hv : v ∈ V) :
     bind K (colour_neighbour_in V v c) = {x ∈ V | x ≠ v} :=
   begin
     ext, simp [colour_neighbour_in, -ne.def], split, rintro ⟨_, _, xV, xv, _⟩, refine ⟨xV, xv.symm⟩,
-    rintro ⟨xV, xv⟩, refine ⟨_, _, xV, xv.symm, rfl⟩, apply h, rw finset.card_insert_of_not_mem, rw finset.card_singleton, rwa finset.not_mem_singleton
+    rintro ⟨xV, xv⟩, refine ⟨_, _, xV, xv.symm, rfl⟩, apply h, split, rw finset.card_insert_of_not_mem, rw finset.card_singleton, 
+    rwa finset.not_mem_singleton, simp, rintro t (rfl | rfl); assumption
   end
 
   lemma infinite_erase {V : set ℕ} (hV : set.infinite V) (x : ℕ) : set.infinite {t ∈ V | t ≠ x} :=
@@ -55,84 +57,74 @@ section ramsey
     refine ⟨y, x, _, rfl⟩, rw finset.not_mem_singleton at notin, apply notin.symm
   end
 
-  set_option pp.all false
-  set_option trace.check true
-
-  theorem ramsey (k : ℕ) (c : finset ℕ → ℕ) (h : ∀ (e : finset ℕ), e.card = 2 → c e < k) : ∃ (M : set ℕ), set.infinite M ∧ 
-    ∃ (col : ℕ), ∀ i ∈ edges_of M, c i = col := 
+  theorem ramsey_r {r k : ℕ} {M₁ : set ℕ} (hM₁ : set.infinite M₁) (c : finset ℕ → ℕ) (h : ∀ e ∈ (r-edges_of M₁), c e < k) :
+    ∃ (M₂ ⊆ M₁), set.infinite M₂ ∧ ∃ (col < k), ∀ i ∈ rset' r M₂, c i = col :=
   begin
-    have: ∃ (f : ℕ → (ℕ × set ℕ × ℕ)), (∀ i, (∀ v ∈ (f i).2.1, c {(f i).1, v} = (f i).2.2)) ∧ 
+    induction r with r ih generalizing M₁ c,
+      refine ⟨M₁, subset.refl _, hM₁, c ∅, _, _⟩, apply h, exact ⟨rfl, λ _, false.elim⟩,
+      rintros i ⟨hi₁, hi₂⟩, rw finset.card_eq_zero at hi₁, rw hi₁, 
+    have: ∃ (f : ℕ → (ℕ × set ℕ × ℕ)), (∀ i, (∀ v ∈ rset' r (f i).2.1, c (insert (f i).1 v) = (f i).2.2)) ∧ 
                                        (∀ i, set.infinite ((f i).2.1)) ∧ 
                                        (∀ i, (f i).2.2 < k) ∧
+                                       (∀ i, (f i).2.1 ⊆ M₁) ∧
+                                       (∀ i, (f i).1 ∈ M₁) ∧
                                        (∀ i j : ℕ, i < j → (f i).1 < (f j).1 ∧ (f j).1 ∈ (f i).2.1 ∧ (f j).2.1 ⊆ (f i).2.1), 
-    { obtain ⟨g, hg⟩ : {g : ℕ → { z : ℕ × set ℕ × ℕ // (∀ v ∈ z.2.1, c {z.1, v} = z.2.2) ∧ set.infinite z.2.1 ∧ z.2.2 < k} 
+    { obtain ⟨g, hg⟩ : {g : ℕ → { z : ℕ × set ℕ × ℕ // (∀ v ∈ rset' r z.2.1, c (insert z.1 v) = z.2.2) ∧ set.infinite z.2.1 ∧ z.2.2 < k ∧ z.2.1 ⊆ M₁ ∧ z.1 ∈ M₁} 
                                 // ∀ i j, i < j → (g i).1.1 < (g j).1.1 ∧ (g j).1.1 ∈ (g i).1.2.1 ∧ (g j).1.2.1 ⊆ (g i).1.2.1} := 
-                       crec' nat.lt_wf (λ _ _ _ (x y : { z : ℕ × set ℕ × ℕ // (∀ v ∈ z.2.1, c {z.1, v} = z.2.2) ∧ set.infinite z.2.1 ∧ z.2.2 < k}), x.1.1 < y.1.1 ∧ y.1.1 ∈ x.1.2.1 ∧ y.1.2.1 ⊆ x.1.2.1) _,
-      exact ⟨λ i, (g i).1, λ i, (g i).2.1, λ i, (g i).2.2.1, λ i, (g i).2.2.2, hg⟩,
+                       crec' nat.lt_wf (λ _ _ _ (x y : { z : ℕ × set ℕ × ℕ // (∀ v ∈ rset' r z.2.1, c (insert z.1 v) = z.2.2) ∧ set.infinite z.2.1 ∧ z.2.2 < k ∧ z.2.1 ⊆ M₁ ∧ z.1 ∈ M₁}), x.1.1 < y.1.1 ∧ y.1.1 ∈ x.1.2.1 ∧ y.1.2.1 ⊆ x.1.2.1) _,
+      exact ⟨λ i, (g i).1, λ i, (g i).2.1, λ i, (g i).2.2.1, λ i, (g i).2.2.2.1, λ i, (g i).2.2.2.2.1, λ i, (g i).2.2.2.2.2, hg⟩,
       rintros i ⟨If, IH⟩,
-      cases i,
-      { set v : ℕ := 0,
-        have := infinite_pigeonhole (colour_neighbour_in univ v c) {i : ℕ | i < k} (finite_lt_nat k) _, 
-          swap, rw all_colours_is_all (finite_lt_nat k) h (mem_univ v), apply infinite_erase, apply infinite_univ_nat,
-        rcases classical.indefinite_description _ this with ⟨red, red_prop⟩,
-        rcases classical.indefinite_description _ red_prop with ⟨red_lt_2, inf_red_edges⟩,
-        refine ⟨⟨⟨v, colour_neighbour_in univ v c red, red⟩, _, inf_red_edges, red_lt_2⟩, λ i hi, (not_lt_of_le (zero_le i) hi).elim⟩, 
-          intros v hv, convert hv.2.2 },
+      cases i, 
+      { obtain ⟨v, hv⟩ := classical.indefinite_description _ (exists_mem_of_infinite _ hM₁),
+        set c' : finset ℕ → ℕ := λ F, c (insert v F),
+        specialize @ih {x ∈ M₁ | x ≠ v} c' (infinite_erase hM₁ _) _, swap, intros e he, apply h, split, rw finset.card_insert_of_not_mem, rw he.1, 
+        intro t, exact (he.2 v t).2 rfl, intros t ht, rw finset.mem_insert at ht, rcases ht with rfl | _, exact hv, exact (he.2 t ht).1, 
+        obtain ⟨B₁, Bp⟩ := classical.indefinite_description _ ih, 
+        obtain ⟨B₁sub, B₁inf, colp⟩ := classical.indefinite_description _ Bp, clear Bp,
+        obtain ⟨col, colp2⟩ := classical.indefinite_description _ colp, clear colp,
+        obtain ⟨colk, mono⟩ := classical.indefinite_description _ colp2, clear colp2,
+        refine ⟨⟨⟨v, B₁, col⟩, mono, B₁inf, colk, λ t ht, (B₁sub ht).1, hv⟩, λ i hi, (not_lt_of_le (zero_le i) hi).elim⟩ },
       set If' := (If i (nat.lt_succ_self i)),
-      rcases If'.2 with ⟨q, infBi, validCi⟩, 
-      obtain ⟨v, hv₁, hv₂⟩ := classical.indefinite_description _ (exists_mem_of_infinite _ (infinite_above_of_infinite _ infBi If'.1.1)),
-      have := infinite_pigeonhole (colour_neighbour_in (If'.1.2.1) v c) {i : ℕ | i < k} (finite_lt_nat k) _, 
-        swap, rw all_colours_is_all (finite_lt_nat k) h hv₁, apply infinite_erase infBi, 
-      rcases classical.indefinite_description _ this with ⟨red, red_prop⟩,
-      rcases classical.indefinite_description _ red_prop with ⟨red_lt_k, inf_red_edges⟩,
-      refine ⟨⟨⟨v, colour_neighbour_in If'.1.2.1 v c red, red⟩, _, inf_red_edges, red_lt_k⟩, _⟩, 
-        intros v hv, convert hv.2.2,
+      set ai := If'.1.1,
+      set Bi := If'.1.2.1,
+      set ci := If'.1.2.2,
+      rcases If'.2 with ⟨mono, infBi, colk, subM, memM⟩, 
+      obtain ⟨v, hv₁, hv₂⟩ := classical.indefinite_description _ (exists_mem_of_infinite _ (infinite_above_of_infinite _ infBi ai)),
+      set c' : finset ℕ → ℕ := λ F, c (insert v F),
+      specialize @ih {x ∈ Bi | x ≠ v} c' (infinite_erase infBi _) _, swap, intros e he, apply h, split, rw finset.card_insert_of_not_mem, rw he.1, 
+      intro t, exact (he.2 v t).2 rfl, intros t ht, rw finset.mem_insert at ht, rcases ht with rfl | _, exact subM hv₁, exact subM (he.2 t ht).1, 
+      obtain ⟨Bi₂, Bp⟩ := classical.indefinite_description _ ih, 
+      obtain ⟨Bi₂sub, Bi₂inf, colp⟩ := classical.indefinite_description _ Bp, clear Bp,
+      obtain ⟨col, colp2⟩ := classical.indefinite_description _ colp, clear colp,
+      obtain ⟨colk₂, mono₂⟩ := classical.indefinite_description _ colp2, clear colp2,
+      refine ⟨⟨⟨v, Bi₂, col⟩, mono₂, Bi₂inf, colk₂, λ t ht, subM (Bi₂sub ht).1, subM hv₁⟩, _⟩, 
       intros j hj, 
-      rcases eq_or_lt_of_le (nat.le_of_lt_succ hj) with rfl | ji, 
-        refine ⟨hv₂, hv₁, colour_neighbour_sub _ _ _ _⟩,
+      rcases eq_or_lt_of_le (nat.le_of_lt_succ hj) with rfl | ji,
+        exact ⟨hv₂, hv₁, trans Bi₂sub (set.sep_subset _ _)⟩, 
       specialize IH j i hj (nat.lt_succ_self _) ji, 
-      refine ⟨trans IH.1 hv₂, IH.2.2 hv₁, trans (colour_neighbour_sub _ _ _ _) IH.2.2⟩ },
-    rcases this with ⟨f, col, inf, validcol, lt'⟩,
+      refine ⟨trans IH.1 hv₂, IH.2.2 hv₁, trans Bi₂sub (trans (set.sep_subset _ _) IH.2.2)⟩ }, 
+    rcases this with ⟨f, col, inf, validcol, subM, memM, lt'⟩,
     set a := λ i, (f i).1,
     set C := λ i, (f i).2.2,
     obtain ⟨col', colltk, inft⟩ := infinite_pigeonhole (λ col, {i : ℕ | C i = col}) {x | x < k} (finite_lt_nat _) _,
       swap, convert infinite_univ_nat, ext t, simp, apply validcol, 
-    simp at colltk inft, 
-    refine ⟨a '' {i : ℕ | C i = col'}, _, col', _⟩, 
+    have mono_a : strict_mono a, intros x y r, exact (lt' x y r).1,
+    refine ⟨a '' {i : ℕ | C i = col'}, _, _, col', colltk, _⟩, 
+      apply mem_image_elim, intros x hx, exact memM x,
       intro, apply inft, apply finite_of_finite_image _ a_1, 
-      intros i j hi hj, apply strict_mono.injective, 
-      intros x y r, apply (lt' x y r).1, 
-    rintros e ⟨he₁, he₂⟩, simp at he₂, 
-    obtain ⟨x, y, xney, rfl⟩ := get_pair he₁, 
-    obtain ⟨i, Ci, rfl⟩ := he₂ x (by simp), obtain ⟨j, Cj, rfl⟩ := he₂ y (by simp), 
-    rcases lt_trichotomy i j with lt | rfl | gt,
-    swap, exfalso, apply xney rfl, 
-    rw ← Ci, apply col, 
-    apply (lt' i j lt).2.1,
-    suffices: c {a j, a i} = col', 
-      convert this using 2, ext, simp, rw or_comm,
-    rw ← Cj, apply col, 
-    apply (lt' j i gt).2.1,
+      apply inj_on_of_injective, apply strict_mono.injective mono_a, 
+    rintros e ⟨he₁, he₂⟩, 
+    have he: e ≠ ∅, intro a_1, rw [a_1, finset.card_empty] at he₁, apply nat.succ_ne_zero _ he₁.symm, 
+    set e₁ := finset.min' e he,
+    have := he₂ e₁ (finset.min'_mem _ _), rcases this with ⟨i₁, h₁, h₂⟩, 
+    specialize col i₁ (finset.erase e e₁) _, convert col, 
+    rw ← h₂, rw finset.insert_erase, 
+    convert (finset.min'_mem _ _), exact h₁.symm,
+    split, rw finset.card_erase_of_mem, rw he₁, refl, apply finset.min'_mem, 
+    intros t ht, simp [-ne.def] at ht, rcases he₂ t ht.2 with ⟨_, _, rfl⟩, 
+    have: e₁ < a w, apply lt_of_le_of_ne _ ht.1.symm, apply finset.min'_le _ _ _ ht.2, 
+    apply (lt' _ _ _).2.1, 
+    rwa [← strict_mono.lt_iff_lt mono_a, h₂], 
   end
 
-  lemma ramsey' {k : ℕ} {M₁ : set ℕ} (hM₁ : set.infinite M₁) (c : finset ℕ → ℕ) (h : ∀ (e : finset ℕ), e.card = 2 ∧ (∀ x ∈ e, x ∈ M₁) → c e < k) :
-    ∃ (M₂ ⊆ M₁), set.infinite M₂ ∧ ∃ (col : ℕ), ∀ i ∈ edges_of M₂, c i = col :=
-  begin
-    obtain ⟨f, hf⟩ := has_sequence_of_infinite M₁ hM₁,
-    have mono_f: strict_mono f := hf.2, 
-    have inj_f: function.injective f := mono_f.injective,
-    set c' : finset ℕ → ℕ := λ e, c (e.image f),
-    obtain ⟨M₂', infM₂', col, monoc⟩ := ramsey k c' _, 
-      refine ⟨f '' M₂', λ t ht, _, _, col, _⟩, rw mem_image at ht, rcases ht with ⟨_, _, rfl⟩, apply hf.1,
-        rw set.infinite, rw finite_image_iff_on, exact infM₂', intros x y _ _, apply inj_f, 
-      rintros i ⟨hi₁, hi₂⟩, 
-      set i' := finset.preimage i (inj_on_of_injective _ inj_f), 
-      have: i = finset.image f i',
-        ext, simp, split, intro ha, specialize hi₂ a ha, simp at hi₂, rcases hi₂ with ⟨z, hz, rfl⟩, refine ⟨z, ha, rfl⟩, 
-        rintro ⟨_, q, rfl⟩, exact q,
-      convert monoc i' _, split, rwa [this, finset.card_image_of_injective _ inj_f] at hi₁, 
-      intros t th, rw finset.mem_preimage at th, specialize hi₂ _ th, rwa mem_image_of_injective inj_f at hi₂, 
-    intros e he, apply h, split, rwa finset.card_image_of_injective _ inj_f, 
-    simp, rintros _ _ _ rfl, apply hf.1, 
-  end
 end ramsey
