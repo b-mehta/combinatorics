@@ -192,6 +192,13 @@ end
 
 lemma thing5 {s : ℕ} (small : ↑n < (sqrt 2)^(s-1)) : choose n s * 2 * 2^(choose n 2 - choose s 2) < 2^(choose n 2) :=
 sorry
+-- idea: suffices to show
+-- choose n s * 2 * 2^(- choose s 2) < 1, ie
+-- choose n s * 2 < 2^(choose s 2)
+-- so it's good enough to show
+-- n^s < 2^(s*(s-1)/2), ie
+-- n < 2^((s-1)/2), which is just our assumption
+
 
 local attribute [instance] classical.prop_decidable
 
