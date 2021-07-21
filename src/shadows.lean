@@ -531,7 +531,7 @@ begin
     { apply nat.zero_le },
     { apply choose_pos, rw mem_range at hr, rwa ← nat.lt_succ_iff },
     { apply choose_le_middle },
-  rw [← finset.sum_div, ← sum_nat_cast, div_le_one] at this,
+  rw [←finset.sum_div, ←nat.cast_sum, div_le_one] at this,
     swap, norm_cast, apply choose_pos, apply nat.div_le_self,
   norm_cast at this, rw ← card_bUnion at this,
     convert this,
