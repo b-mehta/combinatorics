@@ -51,19 +51,20 @@ namespace UV
   To UV-compress A, if it doesn't touch U and does contain V, we remove V and
   put U in. We'll only really use this when |U| = |V| and U ∩ V = ∅.
   -/
-  def compress (U V : finset α) (A : finset α) :=
+  def compress (U V A : finset α) :=
   if disjoint U A ∧ (V ⊆ A)
     then (A ∪ U) \ V
     else A
 
   /-- Compression doesn't change the size of a set. -/
-  lemma compress_size (U V : finset α) (A : finset α) (h₁ : U.card = V.card) :
+  lemma compress_card (U V : finset α) (A : finset α) (h₁ : U.card = V.card) :
     (compress U V A).card = A.card :=
   begin
-    rw compress, split_ifs,
-      rw [card_sdiff (subset.trans h.2 (subset_union_left _ _)),
-          card_disjoint_union h.1.symm, h₁, nat.add_sub_cancel],
-    refl
+    rw compress,
+    split_ifs,
+    { rw [card_sdiff (subset.trans h.2 (subset_union_left _ _)),
+          card_disjoint_union h.1.symm, h₁, nat.add_sub_cancel] },
+    { refl }
   end
 
   /-- Compressing a set is idempotent. -/
@@ -88,14 +89,13 @@ namespace UV
   Part of the compressed family, where we keep sets whose compression is
   already present.
   -/
-  @[reducible]
   def compress_remains (U V : finset α) (𝒜 : finset (finset α)) :=
   𝒜.filter (λ A, compress U V A ∈ 𝒜)
+
   /--
   Part of the compressed family, where we move the sets whose compression is
   not there.
   -/
-  @[reducible]
   def compress_motion (U V : finset α) (𝒜 : finset (finset α)) :=
   (𝒜.filter (λ A, compress U V A ∉ 𝒜)).image (λ A, compress U V A)
 
@@ -108,17 +108,19 @@ namespace UV
   compress_motion U V 𝒜 ∪ compress_remains U V 𝒜
   local notation `CC` := compress_family
 
-  lemma mem_compress_remains  {𝒜 : finset (finset α)} (U V A : finset α) :
+  @[simp]
+  lemma mem_compress_remains {𝒜 : finset (finset α)} (U V A : finset α) :
   A ∈ compress_remains U V 𝒜 ↔ A ∈ 𝒜 ∧ compress U V A ∈ 𝒜 :=
-  by rw mem_filter
+  by simp [compress_remains]
 
+  @[simp]
   lemma mem_compress_motion {𝒜 : finset (finset α)} (U V A : finset α) :
   A ∈ compress_motion U V 𝒜 ↔ A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, compress U V B = A) :=
   begin
-    simp [compress_motion],
+    simp only [compress_motion, mem_image, mem_filter, exists_prop],
     split; rintro ⟨p, q, r⟩,
-      exact ⟨r ▸ q.2, p, ⟨q.1, r⟩⟩,
-    exact ⟨q, ⟨r.1, r.2.symm ▸ p⟩, r.2⟩,
+    { exact ⟨r ▸ q.2, p, ⟨q.1, r⟩⟩ },
+    { exact ⟨q, ⟨r.1, r.2.symm ▸ p⟩, r.2⟩ },
   end
 
   /--
@@ -126,13 +128,16 @@ namespace UV
   compression is in the original, or it's not in the original but it's the
   compression of something in the original
   -/
-  lemma mem_compress {𝒜 : finset (finset α)} (U V : finset α) {A : finset α} :
+  @[simp]
+  lemma mem_compress_family {𝒜 : finset (finset α)} (U V : finset α) {A : finset α} :
     A ∈ CC U V 𝒜 ↔
     (A ∉ 𝒜 ∧ (∃ B ∈ 𝒜, compress U V B = A)) ∨ (A ∈ 𝒜 ∧ compress U V A ∈ 𝒜) :=
   by rw [compress_family, mem_union, mem_compress_remains, mem_compress_motion]
 
+  lemma compress_family_eq {𝒜 : finset (finset α)} {U V : finset α} :
+    CC U V 𝒜 = compress_motion U V 𝒜 ∪ compress_remains U V 𝒜 := rfl
+
   /-- `is_compressed U V 𝒜` expresses that 𝒜 is UV-compressed -/
-  @[reducible]
   def is_compressed (U V : finset α) (𝒜 : finset (finset α)) :=
   CC U V 𝒜 = 𝒜
 
@@ -140,7 +145,7 @@ namespace UV
   lemma is_compressed_empty (𝒜 : finset (finset α)) : is_compressed ∅ ∅ 𝒜 :=
   begin
     have q : ∀ (A : finset α), compress ∅ ∅ A = A, simp [compress],
-    rw [is_compressed, compress_family, compress_motion, compress_remains],
+    rw [is_compressed, compress_family_eq, compress_motion, compress_remains],
     simp only [q, filter_congr_decidable, imp_self, forall_const, filter_true_of_mem,
       union_eq_right_iff_subset],
     intros A hA,
@@ -155,71 +160,78 @@ namespace UV
     (h₁ : U.card = V.card) (h₂ : all_sized 𝒜 r) :
     all_sized (CC U V 𝒜) r :=
   begin
-    intros A HA, rw mem_compress at HA,
+    intros A HA,
+    rw mem_compress_family at HA,
     rcases HA with ⟨_, _, z₁, rfl⟩ | ⟨z₁, _⟩,
-      rw compress_size _ _ _ h₁,
-    all_goals {apply h₂ _ z₁}
+    { rw compress_card _ _ _ h₁,
+      apply h₂ _ z₁ },
+    { apply h₂ _ z₁ }
   end
 
   /-- Compressing a family is idempotent. -/
   lemma compress_family_idempotent (U V : finset α) (𝒜 : finset (finset α)) :
     CC U V (CC U V 𝒜) = CC U V 𝒜 :=
   begin
-    have: ∀ A ∈ CC U V 𝒜, compress U V A ∈ CC U V 𝒜,
-      intros A HA, rw mem_compress at HA ⊢, simp [compress_idem],
+    have : ∀ A ∈ CC U V 𝒜, compress U V A ∈ CC U V 𝒜,
+    { intros A HA,
+      rw mem_compress_family at HA ⊢,
+      simp only [compress_idem, exists_prop, and_self],
       rcases HA with ⟨_, B, _, rfl⟩ | ⟨_, _⟩,
-        left, refine ⟨_, B, ‹_›, _⟩; rwa compress_idem,
-      right, assumption,
-    have: filter (λ A, compress U V A ∉ CC U V 𝒜) (CC U V 𝒜) = ∅,
-      rw ← filter_false (CC U V 𝒜), apply filter_congr, simpa,
-    rw [compress_family, compress_motion, this, image_empty, union_comm,
+      { left,
+        refine ⟨_, B, ‹_›, _⟩; rwa compress_idem },
+      { right, assumption } },
+    have : filter (λ A, compress U V A ∉ CC U V 𝒜) (CC U V 𝒜) = ∅,
+    { apply filter_false_of_mem,
+      simpa using this },
+    rw [compress_family_eq, compress_motion, this, image_empty, union_comm,
         compress_remains, ← this],
     apply filter_union_filter_neg_eq _ (compress_family U V 𝒜)
   end
 
-  lemma compress_disjoint {𝒜 : finset (finset α)} (U V : finset α) :
+  lemma compress_motion_remains_disjoint {𝒜 : finset (finset α)} (U V : finset α) :
     disjoint (compress_motion U V 𝒜) (compress_remains U V 𝒜) :=
   begin
-    rw disjoint_left, intros A HA HB,
+    rw disjoint_left,
+    intros A HA HB,
     rw mem_compress_remains at HB,
     rw mem_compress_motion at HA,
     exact HA.1 HB.1
   end
 
   /-- Compression is kinda injective. -/
-  lemma inj_ish {U V : finset α} {A B : finset α}
+  lemma compress_partial_inj {U V : finset α} {A B : finset α}
     (hA : disjoint U A ∧ V ⊆ A) (hB : disjoint U B ∧ V ⊆ B)
     (Z : (A ∪ U) \ V = (B ∪ U) \ V) : A = B :=
   begin
-    ext x, split,
-    all_goals {
-      intro p, by_cases h₁: (x ∈ V), { exact hB.2 h₁ <|> exact hA.2 h₁ },
-      have := mem_sdiff.2 ⟨mem_union_left U ‹_›, h₁⟩,
-      rw Z at this <|> rw ← Z at this,
-      rw [mem_sdiff, mem_union] at this,
-      suffices: x ∉ U, tauto,
-      apply disjoint_right.1 ‹disjoint _ _ ∧ _›.1 p }
+    ext x,
+    by_cases h₁ : x ∈ V,
+    { simp [hA.2 h₁, hB.2 h₁] },
+    { have h₂ := finset.ext_iff.1 Z x,
+      have h₃ : x ∈ U → x ∉ A := disjoint_left.1 hA.1,
+      have h₄ : x ∈ U → x ∉ B := disjoint_left.1 hB.1,
+      simp only [h₁, mem_union, and_true, mem_sdiff, not_false_iff] at h₂,
+      tauto }
   end
 
   /-- Compressing a set family doesn't change its size. -/
   lemma compressed_size {𝒜 : finset (finset α)} (U V : finset α) :
    (CC U V 𝒜).card = 𝒜.card :=
   begin
-    rw [compress_family, card_disjoint_union (compress_disjoint _ _),
-        card_image_of_inj_on],
-      rw [← card_disjoint_union, union_comm, filter_union_filter_neg_eq],
-      rw [disjoint_iff_inter_eq_empty, inter_comm],
-      apply filter_inter_filter_neg_eq,
+    rw [compress_family, card_disjoint_union (compress_motion_remains_disjoint _ _),
+      compress_motion, card_image_of_inj_on, ←card_disjoint_union, union_comm, compress_remains,
+      filter_union_filter_neg_eq],
+    { rw [disjoint_iff_inter_eq_empty, inter_comm],
+      apply filter_inter_filter_neg_eq },
     intros A HA B HB Z,
+    simp only [coe_filter, set.mem_sep_eq, mem_coe] at HA HB,
     dsimp only at Z,
-    rw [mem_coe, mem_filter] at HA HB,
     rw [compress] at HA Z,
     split_ifs at HA Z,
     { rw compress at HB Z,
       split_ifs at HB Z,
-      { exact inj_ish h h_1 Z },
-      tauto },
-    tauto
+      { apply compress_partial_inj h h_1 Z },
+      apply (HB.2 HB.1).elim },
+    { apply (HA.2 HA.1).elim }
   end
 
   /--
@@ -230,17 +242,20 @@ namespace UV
     (h₁ : A ∈ CC U V 𝒜) (h₂ : V ⊆ A) (h₃ : U.card = V.card) :
     A ∈ 𝒜 :=
   begin
-    rw mem_compress at h₁, rcases h₁ with ⟨_, B, H, HB⟩ | _,
-      rw compress at HB, split_ifs at HB,
-        have: V = ∅,
-          apply eq_empty_of_forall_not_mem,
-          intros x xV, replace h₂ := h₂ xV,
-          rw [← HB, mem_sdiff] at h₂, exact h₂.2 xV,
-        have: U = ∅,
-          rwa [← card_eq_zero, h₃, card_eq_zero],
-        rw [‹U = ∅›, ‹V = ∅›, union_empty, sdiff_empty] at HB, rwa ← HB,
-      rwa ← HB,
-    tauto
+    rw mem_compress_family at h₁,
+    rcases h₁ with ⟨_, B, H, HB⟩ | _,
+    { rw compress at HB,
+      split_ifs at HB,
+      { have V_eq : V = ∅,
+        { rw ←disjoint_self_iff_empty,
+          apply disjoint_of_subset_right h₂,
+          rw ←HB,
+          apply disjoint_sdiff },
+        have U_eq : U = ∅,
+        { rw [←card_eq_zero, h₃, V_eq, finset.card_empty] },
+        rwa [←HB, U_eq, V_eq, union_empty, sdiff_empty] },
+      rwa ←HB },
+    { apply h₁.1 }
   end
 
   /--
@@ -251,7 +266,7 @@ namespace UV
     (h₁ : A ∈ CC U V 𝒜) (h₂ : A ∉ 𝒜) :
     U ⊆ A ∧ disjoint V A ∧ (A ∪ V) \ U ∈ 𝒜 :=
   begin
-    rw mem_compress at h₁,
+    rw mem_compress_family at h₁,
     rcases h₁ with ⟨_, B, H, HB⟩ | _,
     { rw compress at HB,
       split_ifs at HB,
@@ -274,23 +289,30 @@ namespace UV
     {U V A : finset α} (h₁ : A ∈ CC U V 𝒜) (h₂ : V ⊆ A) (h₃ : disjoint U A) :
     (A ∪ U) \ V ∈ 𝒜 :=
   begin
-    rw mem_compress at h₁, have: disjoint U A ∧ V ⊆ A := ⟨h₃, h₂⟩,
+    rw mem_compress_family at h₁,
     rcases h₁ with ⟨_, B, B_in_A, cB_eq_A⟩ | ⟨_, cA_in_A⟩,
-    { by_cases a: (A ∪ U) \ V = A,
-        have: U \ V = U, apply sdiff_eq_self_of_disjoint,
-          apply (disjoint_of_subset_right h₂ h₃),
+    {
+      by_cases a : (A ∪ U) \ V = A,
+      { have: U \ V = U,
+        { apply sdiff_eq_self_of_disjoint,
+          apply (disjoint_of_subset_right h₂ h₃) },
         have: U = ∅,
-          rw ← disjoint_self_iff_empty,
+        { rw ← disjoint_self_iff_empty,
           suffices: disjoint U (U \ V), rw ‹U \ V = U› at this, assumption,
           apply disjoint_of_subset_right (subset_union_right (A \ V) _),
-          rwa [← union_sdiff_distrib, a],
+          rwa [← union_sdiff_distrib, a] },
         have: V = ∅,
-          rw ← disjoint_self_iff_empty, apply disjoint_of_subset_right h₂,
-          rw ← a, apply disjoint_sdiff,
-        simpa [a, cB_eq_A.symm, compress, ‹U = ∅›, ‹V = ∅›],
-      have: compress U V A = (A ∪ U) \ V, rw compress, split_ifs, refl,
-      exfalso, apply a, rw [← this, ← cB_eq_A, compress_idem] },
-    { rw compress at cA_in_A, split_ifs at cA_in_A, assumption }
+        { rw ← disjoint_self_iff_empty, apply disjoint_of_subset_right h₂,
+          rw ← a, apply disjoint_sdiff },
+        simpa [a, cB_eq_A.symm, compress, ‹U = ∅›, ‹V = ∅›] },
+      have : compress U V A = (A ∪ U) \ V,
+      { rw compress,
+        split_ifs,
+        { refl },
+        exact (h ⟨h₃, h₂⟩).elim },
+      rw [←cB_eq_A, compress_idem, cB_eq_A] at this,
+      cases a this.symm },
+    { rw compress at cA_in_A, split_ifs at cA_in_A, assumption, cases h ⟨h₃, h₂⟩ }
   end
 
   example {α : Type*} [decidable_eq α] (x : α) (s : finset α) : insert x s = {x} ∪ s :=
@@ -435,6 +457,7 @@ namespace UV
       rwa disjoint.comm,
     apply card_le_card_of_inj_on (λ B, (B ∪ V) \ U) (λ B HB, (q₁ B HB).2.2),
     intros B₁ HB₁ B₂ HB₂ k,
-    exact inj_ish ⟨(q₁ B₁ HB₁).2.1, (q₁ B₁ HB₁).1⟩ ⟨(q₁ B₂ HB₂).2.1, (q₁ B₂ HB₂).1⟩ k
+    apply compress_partial_inj ⟨(q₁ B₁ HB₁).2.1, (q₁ B₁ HB₁).1⟩ ⟨(q₁ B₂ HB₂).2.1, (q₁ B₂ HB₂).1⟩ k,
   end
+
 end UV

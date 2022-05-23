@@ -165,7 +165,7 @@ section
       rw [compress_motion, z, image_empty, empty_union] at a,
       rw [z, union_empty] at uA,
       exact a uA },
-    rw [family_measure, family_measure, sum_union (compress_disjoint U V)],
+    rw [family_measure, family_measure, sum_union (compress_motion_remains_disjoint U V)],
     conv_rhs {rw ← uA},
     rw [sum_union, add_comm, add_lt_add_iff_left, sum_image],
     { apply sum_lt_sum_of_nonempty,
